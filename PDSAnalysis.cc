@@ -305,7 +305,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   TH1F* hRF = GetRFMean();
   RemoveADCOffset(hRF);
   rf_time[subevent] = FindRFTime(hRF);
-  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999);
+  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999) || (subevent == 0);
   isBeamTrigger[subevent] = (subevent == 0);
 
   // Time weighting
@@ -662,8 +662,8 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 void PDSAnalysis::DrawEvent(Int_t subevent)
 {
   fCanvas->cd();
-  fCanvas->SetGridx();
-  fCanvas->SetGridy();
+  //fCanvas->SetGridx();
+  //fCanvas->SetGridy();
 
   TObjArray* pmt_hists = new TObjArray();
   TObjArray* pmt_lines = new TObjArray();
@@ -679,6 +679,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   RemoveADCOffset(hSum,-50);
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
+  hSum->SetTitle(Form("PDS%d-TPC%d-%d",pds_evno[subevent],tpc_evno,subevent));
   if( !pds_flag[subevent] )
     hSum->SetLineColor(kGray + 2);
   else
