@@ -236,7 +236,7 @@ void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
     DoPDSAnalysis(subevent);
 
     // Draw event
-    if( pds_evno[subevent] % (fPMTTree->GetEntries()/10)==1 )
+    if( pds_evno[subevent] % (fPMTTree->GetEntries()/10)==0 )
       PrintEvent(subevent);
     if( fViewerMode ) {
       PrintEvent(subevent);

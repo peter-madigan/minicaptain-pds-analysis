@@ -22,8 +22,8 @@ void pmt_calib() {
 
   TH1F* h_noise = new TH1F("hNoise",";total integral;count",1000,-500,500);
   TH1F* h_notNoise = new TH1F("hNotNoise",";total integral;count",1000,-500,500);
-  ch->Draw("pmt_integral>>hNoise","pmt_noise","e goff");
-  ch->Draw("pmt_integral>>hNotNoise","!pmt_noise","e goff");
+  ch->Draw("pmt_integral>>hNoise","!pmt_flag","e goff");
+  ch->Draw("pmt_integral>>hNotNoise","pmt_flag","e goff");
   c_noise -> cd();
   h_noise -> Draw("e");
   h_notNoise -> Draw("e same");
@@ -35,7 +35,7 @@ void pmt_calib() {
 
     TH1F* h_peak = new TH1F(name_peak,name_peak+";height;count",15,-15,0);
     TH1F* h_bl = new TH1F(name_bl,name_bl+";baseline;count",40,3880,3920);
-    ch->Draw("pmt_peak>>"+name_peak,Form("Iteration$%%15==%d && !pmt_noise",pmt),"e goff");
+    ch->Draw("pmt_peak>>"+name_peak,Form("Iteration$%%15==%d && pmt_flag",pmt),"e goff");
     ch->Draw("pmt_offset>>"+name_bl,Form("Iteration$%%15==%d",pmt),"e goff");
 
     // peak fit
@@ -63,9 +63,9 @@ void pmt_calib() {
   }
 
   // Occupancy
-  Bool_t pmt_noise[1000][15];
+  Bool_t pmt_flag[1000][15];
   UInt_t  nevent;
-  ch->SetBranchAddress("pmt_noise", pmt_noise);
+  ch->SetBranchAddress("pmt_flag", pmt_flag);
   ch->SetBranchAddress("pds_nevent", &nevent);
 
   TH1F* h_occu = new TH1F("h_occu","occupancy;# of pmts;counts",15,0,15);
@@ -75,7 +75,7 @@ void pmt_calib() {
     for( int j = 0; j < nevent; j++ ) {
       Int_t sum = 0;
       for( int pmt = 0; pmt < 15; pmt++ ) {
-	sum += !pmt_noise[j][pmt];
+	sum += pmt_flag[j][pmt];
       }
       h_occu -> Fill(sum);
     }
