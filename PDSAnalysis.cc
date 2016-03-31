@@ -459,6 +459,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
 	peak_time[0] = sample;
       else if( h->GetBinContent(sample) < h->GetBinContent(peak_time[0]) )
 	peak_time[0] = sample;
+
+  std::cout << "Here" << peak_time[0] << std::endl;
   
   // Find triplet peaks
   if( peak_time[0] != -9999 ) {
