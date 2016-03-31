@@ -32,7 +32,7 @@ const Double_t PDSAnalysis::kBeamPulseWidth = 625e-6;
 const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
-void InitializeADC_to_pe() {
+void PDSAnalysis::InitializeADC_to_pe() {
   kADC_to_pe.push_back(-1.);
   kADC_to_pe.push_back(-1.);
   kADC_to_pe.push_back(-1.);
@@ -248,7 +248,7 @@ void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
   }
 }
 
-void DoPMTAnalysis(Int_t subevent, Int_t pmt) 
+void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt) 
 {
   // Create PMT histogram
   TH1F* hPMT = GetPMT(pmt);
@@ -273,7 +273,7 @@ void DoPMTAnalysis(Int_t subevent, Int_t pmt)
   pmt_flag[subevent][pmt] = IsPMTEvent(hPMT, subevent, pmt);
 }
 
-void DoPDSAnalysis(Int_t subevent) {
+void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   // Create PMT histogram        
   TH1F* hPMT = GetPMTSum();
   pds_offset[subevent] = RemoveADCOffset(hPMT);
@@ -323,7 +323,7 @@ void DoPDSAnalysis(Int_t subevent) {
   hRF->Delete();
 }
 
-Bool_t IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
+Bool_t PDSAnalysis::IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
 {
   if( pmt_time[subevent][pmt] == -9999 ) return false;
   if( pmt_peak[subevent][pmt] == -9999 ) return false;
@@ -332,7 +332,7 @@ Bool_t IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_tim
   return true;
 }
 
-Bool_t IsPDSEvent(TH1* h, Int_t subevent, std::vector<Int_t> peak_time) 
+Bool_t PDSAnalysis::IsPDSEvent(TH1* h, Int_t subevent, std::vector<Int_t> peak_time) 
 {
   if( pds_time[subevent] == -9999 ) return false;
   if( pds_peak[subevent] == -9999 ) return false;
@@ -341,7 +341,7 @@ Bool_t IsPDSEvent(TH1* h, Int_t subevent, std::vector<Int_t> peak_time)
   return true;
 }
 
-TH1F* GetPMT(Int_t pmt) 
+TH1F* PDSAnalysis::GetPMT(Int_t pmt) 
 {
   UInt_t board;
   if( pmt < 5 )
@@ -360,7 +360,7 @@ TH1F* GetPMT(Int_t pmt)
   return h;
 }
 
-TH1F* GetPMTSUM() 
+TH1F* PDSAnalysis::GetPMTSUM() 
 {
   TString name = "hPMTSum";
   TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
@@ -382,7 +382,7 @@ TH1F* GetPMTSUM()
   return h;
 }
 
-TH1F* GetRFMean() 
+TH1F* PDSAnalysis::GetRFMean() 
 {
   TString name = "hRFMean";
   TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
@@ -396,7 +396,7 @@ TH1F* GetRFMean()
   return h;
 }
 
-Double_t RemoveADCOffset(TH1F* h, Double_t left_offset) 
+Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset) 
 {
   // calculates an offset from a 100ns interval
   // returns the offset with a std. dev. < 0.5 ADC or the offset with the smallest std. dev. (the faster of the two)
@@ -435,7 +435,7 @@ Double_t RemoveADCOffset(TH1F* h, Double_t left_offset)
   return offset_min;
 }
 
-std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt) 
+std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt) 
 {
   // Produces a list of peaks above the threshold
   // First entry is global minimum (in search window)
@@ -485,7 +485,7 @@ std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt)
   return peak_time;
 }
 
-Double_t FindEvTime(TH1F* h, Int_t peak_time)
+Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 {
   // Interpolates the 10%-peak time (maximum half width at base = 100ns)
   Double_t peak_10p = h->GetBinContent(peak_time[0]) * 0.10;
@@ -501,7 +501,7 @@ Double_t FindEvTime(TH1F* h, Int_t peak_time)
   return -9999;
 }
 
-Double_t FindRFTime(TH1F* h)
+Double_t PDSAnalysis::FindRFTime(TH1F* h)
 {
   // Interpolates the RF-threshold crossing time
   for( UInt_t sample = kTrigger - kBeamSearchWindow_pre; sample < kTrigger + kBeamSearchWindow_post; sample++ )
@@ -516,7 +516,7 @@ Double_t FindRFTime(TH1F* h)
   return -9999;
 }
 
-Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time) 
+Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time) 
 {
   // Only integrates the negative peaks
   Double_t integral = 0;
@@ -528,7 +528,7 @@ Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time)
   return integral;
 }
 
-Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
+Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
 {
   // Integrates all peaks
   Double_t integral = 0;
@@ -538,7 +538,7 @@ Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
   return integral;
 }
 
-Double_t Integral(TH1F* h, Int_t peak_time)
+Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
 {
   // Integrates peak across 10%-peak width
   Double_t peak_10p = h->GetBinContent(peak_time);
@@ -582,7 +582,7 @@ Double_t Integral(TH1F* h, Int_t peak_time)
   return integral;
 }
 
-Double_t QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_t p)
+Double_t PDSAnalysis::QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_t p)
 {
   // 2nd order Lagrange polynomial interpolation
   // if x-pts are equal, returns highest order result possible
@@ -613,7 +613,7 @@ Double_t QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_t p)
   return sum;
 }
 
-void ConvertUnits(Int_t subevent)
+void PDSAnalysis::ConvertUnits(Int_t subevent)
 {
   pds_time[subevent] *= kTick_to_ns;
   pds_peak[subevent] *= 1.;
@@ -628,7 +628,7 @@ void ConvertUnits(Int_t subevent)
   }
 }
 
-void PrintEvent(Int_t subevent)
+void PDSAnalysis::PrintEvent(Int_t subevent)
 {
   std::cout << "Run#" << runno << "\n"
 	    << "TPC Ev#" << tpc_evno << "\t"
