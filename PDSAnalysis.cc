@@ -11,6 +11,7 @@
 #include <TFile.h>
 #include <THStack.h>
 #include <TMath.h>
+#include <TLine.h>
 
 #include "PDSAnalysis.h"
 
@@ -65,7 +66,6 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
   if( fViewerMode ) {
     std::cout << "Running in viewer mode..." << std::endl;
     fCanvas = new TCanvas("fCanvas","Event viewer");
-    c->SetGridx(); c->SetGridy();
   }
 
   if( fCalibration )
@@ -91,13 +91,13 @@ PDSAnalysis::~PDSAnalysis()
     fCanvas->Close();
 }
 
-TTree* PDSAnalysis::ImportTree(TString fiName, TString treeName)
+TTree* PDSAnalysis::ImportTree(TString fiName)
 {
   std::cout << "Importing tree from " << fiName << "..." << std::endl;
   TFile* fi = new TFile(fiName);
   if(!fi) return NULL;
   
-  TTree* tree = (TTree*)(fi->Get(treeName));
+  TTree* tree = (TTree*)(fi->Get("pmt_tree"));
   if(!tree) return NULL;
   
   tree->SetBranchAddress("event_number", &fEventNumber);
@@ -154,7 +154,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   return tree;
 }
 
-void PDSAnalysis::Loop(TTree* pdsTree, TTree* outTree)
+void PDSAnalysis::Loop()
 {
   std::cout << "Starting loop..." << std::endl;
 
@@ -270,7 +270,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   }
 
   // Flag if not noise
-  pmt_flag[subevent][pmt] = IsPMTEvent(hPMT, subevent, pmt);
+  pmt_flag[subevent][pmt] = IsPMTEvent(hPMT, subevent, pmt, peak_time);
 }
 
 void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
@@ -284,7 +284,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
     pds_peak[subevent] = hPMT->GetBinContent(peak_time[0]);
     pds_time[subevent] = FindEvTime(hPMT, peak_time[0]);
     if( fCalibration )
-      pds_intgral[subevent] = TotalIntegral(hPMT, peak_time);
+      pds_integral[subevent] = TotalIntegral(hPMT, peak_time);
     else
       pds_integral[subevent] = NegativeIntegral(hPMT, peak_time);
   } else {
@@ -294,7 +294,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   }
 
   // Flag if not noise 
-  pds_flag[subevent] = IsPDSEvent(hPMT, subevent);
+  pds_flag[subevent] = IsPDSEvent(hPMT, subevent, peak_time);
 
   // Check beam
   TH1F* hRF = GetRFMean();
@@ -323,7 +323,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   hRF->Delete();
 }
 
-Bool_t PDSAnalysis::IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
+Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
 {
   if( pmt_time[subevent][pmt] == -9999 ) return false;
   if( pmt_peak[subevent][pmt] == -9999 ) return false;
@@ -332,7 +332,7 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<In
   return true;
 }
 
-Bool_t PDSAnalysis::IsPDSEvent(TH1* h, Int_t subevent, std::vector<Int_t> peak_time) 
+Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time) 
 {
   if( pds_time[subevent] == -9999 ) return false;
   if( pds_peak[subevent] == -9999 ) return false;
@@ -360,7 +360,7 @@ TH1F* PDSAnalysis::GetPMT(Int_t pmt)
   return h;
 }
 
-TH1F* PDSAnalysis::GetPMTSUM() 
+TH1F* PDSAnalysis::GetPMTSum() 
 {
   TString name = "hPMTSum";
   TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
@@ -389,7 +389,7 @@ TH1F* PDSAnalysis::GetRFMean()
   
   for( UInt_t board = 0; board < kNBoards; board++ ) {
     UInt_t channel = 5;
-    for( Int_t sample = 0; sample < fNSamples; sample++ )
+    for( UInt_t sample = 0; sample < fNSamples; sample++ )
       h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
   }
   
@@ -403,9 +403,9 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   Double_t offset = 0.0;
   Double_t offset_min = 0.0; 
 
-  Int_t n = 25;
-  Int_t start = 0;
-  Int_t end = n + start;
+  UInt_t n = 25;
+  UInt_t start = 0;
+  UInt_t end = n + start;
 
   Double_t sum = n;
   Double_t sumsq = Power(n, 2);
@@ -449,7 +449,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   else if( pmt == 16 )
     threshold = kRFThreshold;
   else
-    threshold = kPMTThreshold / kADC_to_pe;
+    threshold = kPMTThreshold / kADC_to_pe[pmt];
 
   // Find global minimum
   std::vector<Int_t> peak_time;
@@ -488,8 +488,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
 Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 {
   // Interpolates the 10%-peak time (maximum half width at base = 100ns)
-  Double_t peak_10p = h->GetBinContent(peak_time[0]) * 0.10;
-  for( UInt_t sample = peak_time[0]; sample > peak_time - 25; sample-- ) 
+  Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
+  for( UInt_t sample = peak_time; sample > peak_time - 25; sample-- ) 
     if( Abs( h->GetBinContent(sample) ) < peak_10p ) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt, 

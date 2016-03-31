@@ -91,7 +91,8 @@ class PDSAnalysis
   // functions
   PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root", Bool_t CalibrationMode=false, Bool_t ViewerMode=false);
   ~PDSAnalysis();
-  
+
+  void InitializeADC_to_pe();
   TTree* ImportTree(TString fiName);
   TTree* SetupNewTree(TString foName);
   
@@ -100,8 +101,8 @@ class PDSAnalysis
   void DoPMTAnalysis(Int_t subevent, Int_t pmt);
   void DoPDSAnalysis(Int_t subevent);
   
-  Bool_t IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time);
-  Bool_t IsPDSEvent(TH1* h, Int_t subevent, std::vector<Int_t> peak_time);
+  Bool_t IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time);
+  Bool_t IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time);
 
   TH1F* GetPMT(Int_t pmt);
   TH1F* GetPMTSum();
