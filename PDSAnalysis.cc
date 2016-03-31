@@ -20,6 +20,7 @@ using namespace TMath;
 const Int_t    PDSAnalysis::kTrigger        = 848;
 const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
+const Double_t PDSAnalysis::kSumThreshold      = 2.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.25; // pe
 const Double_t PDSAnalysis::kIntegralThreshold = 50.0; // ADC ticks
@@ -136,7 +137,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   tree->Branch("pds_peak", pds_peak, "pds_peak[pds_nevent]/D");
   tree->Branch("pds_integral", pds_integral, "pds_integral[pds_nevent]/D");
   tree->Branch("pds_offset",   pds_offset,   "pds_offset[pds_nevent]/D");
-  tree->Branch("pds_flag", pds_flag, "pds_flag[pds_nevent/O");
+  tree->Branch("pds_flag", pds_flag, "pds_flag[pds_nevent]/O");
 
   tree->Branch("pmt_time", pmt_time, "pmt_time[pds_nevent][15]/D");
   tree->Branch("pmt_peak", pmt_peak, "pmt_peak[pds_nevent][15]/D");
@@ -279,7 +280,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   pds_offset[subevent] = RemoveADCOffset(hPMT);
 
   // Find peaks in histogram   
-  std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
+  std::vector<Int_t> peak_time = FindPeaks(hPMT, 15);
   if( peak_time[0] != -9999 ) {
     pds_peak[subevent] = hPMT->GetBinContent(peak_time[0]);
     pds_time[subevent] = FindEvTime(hPMT, peak_time[0]);
@@ -354,7 +355,7 @@ TH1F* PDSAnalysis::GetPMT(Int_t pmt)
 
   TString name = Form("hPMT-%d", pmt);
   TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
-  for( Int_t sample = 0; sample < fNSamples; sample++ )
+  for( UInt_t sample = 0; sample < fNSamples; sample++ )
     h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
 
   return h;
@@ -365,7 +366,7 @@ TH1F* PDSAnalysis::GetPMTSum()
   TString name = "hPMTSum";
   TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
   
-  for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
+  for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     UInt_t board;
     if( pmt < 5 )
       board = 2;
@@ -375,7 +376,7 @@ TH1F* PDSAnalysis::GetPMTSum()
       board = 1;
     UInt_t channel = pmt % 5;
     
-    for( Int_t sample = 0; sample < fNSamples; sample++ )
+    for( UInt_t sample = 0; sample < fNSamples; sample++ )
       h->Fill(sample, fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
   }
 
@@ -411,10 +412,10 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   Double_t sumsq = Power(n, 2);
   Double_t stddev = Sqrt(sumsq/n - sum/n);
   Double_t stddev_min = Sqrt(sumsq/n - sum/n);
-  while( stddev > 0.5 && end > fNSamples ) {
+  while( stddev > 1 && end < fNSamples ) {
     sum = 0;
     sumsq = 0;
-    for( Int_t sample = start; sample < end; sample++ ) {
+    for( UInt_t sample = start; sample < end; sample++ ) {
       sum += h->GetBinContent(sample);
       sumsq += Power(h->GetBinContent(sample), 2);
     }
@@ -446,15 +447,13 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     threshold = 3;
   else if( pmt == 15 )
     threshold = kSumThreshold;
-  else if( pmt == 16 )
-    threshold = kRFThreshold;
   else
     threshold = kPMTThreshold / kADC_to_pe[pmt];
 
   // Find global minimum
   std::vector<Int_t> peak_time;
   peak_time.push_back(-9999);
-  for( Int_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post; sample++ ) 
+  for( UInt_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post; sample++ ) 
     if( Abs( h->GetBinContent(sample) ) > threshold ) 
       if( peak_time[0] == -9999 )
 	peak_time[0] = sample;
@@ -489,7 +488,7 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 {
   // Interpolates the 10%-peak time (maximum half width at base = 100ns)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
-  for( UInt_t sample = peak_time; sample > peak_time - 25; sample-- ) 
+  for( Int_t sample = peak_time; sample > peak_time - 25; sample-- ) 
     if( Abs( h->GetBinContent(sample) ) < peak_10p ) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt, 
@@ -543,7 +542,7 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
   // Integrates peak across 10%-peak width
   Double_t peak_10p = h->GetBinContent(peak_time);
   Double_t integral = 0;
-  Int_t sample = peak_time;
+  UInt_t sample = peak_time;
   // Backwards from peak
   while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) ) {
     integral += h->GetBinContent(sample);
@@ -735,7 +734,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
     // Draw PMT lines
     if( pmt_flag[subevent][pmt] ) {
-      TLine* l_time = new TLine(pmt_time[subevent][pmt], ymin, pds_time[subevent][pmt], ymax);
+      TLine* l_time = new TLine(pmt_time[subevent][pmt], ymin, pmt_time[subevent][pmt], ymax);
       pmt_lines->Add(l_time);
       l_time->SetLineColor(kSpring);
       l_time->SetLineStyle(3);
