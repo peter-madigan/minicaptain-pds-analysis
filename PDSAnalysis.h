@@ -14,80 +14,111 @@
 class PDSAnalysis 
 {
  public:
-  static const size_t maxTime = 2048; 
-  static const size_t nBoards = 3;
-  static const size_t nPMTs   = 6;
-  static const size_t totPMTs  = 15;
-  static const Int_t trigger;
-  static const Double_t sampleRate;
-  static const Double_t rfThreshold;
-  static const Double_t pmtSumThreshold;
-  static const Double_t pmtSingleThreshold;
-  static const Int_t beamSearchWindow_post;
-  static const Int_t triggerWindow;
-  static const Double_t beamPulseWidth;
-  static const Double_t tpcGateWidth;
-  vector<Double_t> ADC_to_pe;
-  static const Double_t tick_to_ns;
+  // Analysis constants
+  static const UInt_t kMaxNEvents  = 100;
+  static const size_t kMaxNSamples = 2048; 
+  static const size_t kNBoards     = 3;
+  static const size_t kNChannels   = 6;
+  static const size_t kNPMTs       = 15;
+  
+  static const Int_t kTrigger;
+  static const Double_t kSampleRate;
+  
+  static const Double_t kSumThreshold;
+  static const Double_t kRFThreshold;
+  static const Double_t kPMTThreshold;
+  static const Double_t kIntegralThreshold;
 
-  Double_t tpcTriggerTime;
+  static const Int_t kPeakSearchWindow_pre;
+  static const Int_t kPeakSearchWindow_post;
+  static const Int_t kBeamSearchWindow_post;
+  static const Int_t kBeamSearchWindow_pre;
 
-  TTree* pdsTree;
-  // pmt tree variables
-  UShort_t waveforms[nBoards][8][maxTime];
-  UInt_t   number;
-  UInt_t   nSamples;
-  struct pmt_time {
-    UShort_t gps_y, gps_d;
-    UInt_t   gps_s, gps_ns;
-    Int_t comp_s; 
-    Long64_t comp_ns;
-    UShort_t gps_flag;
-    UInt_t digit_time[nBoards];
-  } time;
-
+  static const Double_t kBeamPulseWidth;
+  static const Double_t kTPCGateWidth;
+  
+  std::vector<Double_t> kADC_to_pe;
+  Double_t              kMeanADC_to_pe;
+  static const Double_t kTick_to_ns;
+  
+  // Input tree
+  TTree* fPMTTree;
+  // Input tree variables
+  UShort_t fDigitizerWaveform[kNBoards][8][kMaxNSamples];
+  UInt_t   fEventNumber;
+  UInt_t   fNSamples;
+  UShort_t fGPS_y, fGPS_d;
+  UInt_t   fGPS_s, fGPS_ns;
+  Int_t    fComp_s; 
+  Long64_t fComp_ns;
+  UShort_t fGPS_flag;
+  UInt_t   fDigitizerTime[kNBoards];
+  
+  // Output tree
+  TTree* fAnalysisTree;
   // analysis variables
   UInt_t   runno;
-  Int_t    evno_tpc;
-  UInt_t   nevent;
-  Int_t    evno_pds[1000];
-  Double_t time_interp[1000];
+  Int_t    tpc_evno;
+  UInt_t   pds_nevent;
   UShort_t gps_yr, gps_d;
   UInt_t   gps_s,  gps_ns;
-  Double_t peak[1000], integral[1000];
-  Double_t peak_time[1000];
-  Double_t pmt_peak[1000][totPMTs];
-  Double_t pmt_integral[1000][totPMTs];
-  Double_t pmt_peak_time[1000][totPMTs];
-  Double_t pmt_time_interp[1000][totPMTs];
-  Double_t pmt_dtime[1000][totPMTs][totPMTs];
-  Double_t rf_time[1000];
-  Bool_t   inBeamWindow[1000];
-  Bool_t   isBeamTrigger[1000];
-  Double_t pds_time[1000];
-  Double_t timeWt[1000];
+  
+  Int_t    pds_evno[kMaxNEvents];
+  Double_t pds_time[kMaxNEvents];
+  Double_t pds_peak[kMaxNEvents];
+  Double_t pds_integral[kMaxNEvents];
+  Double_t pds_offset[kMaxNEvents];
+  Bool_t   pds_flag[kMaxNEvents];
 
-  TCanvas* c;
+  Double_t pmt_time[kMaxNEvents][kNPMTs];
+  Double_t pmt_peak[kMaxNEvents][kNPMTs];
+  Double_t pmt_integral[kMaxNEvents][kNPMTs];
+  Double_t pmt_dtime[kMaxNEvents][kNPMTs][kNPMTs];
+  Double_t pmt_offset[kMaxNEvents][kNPMTs];
+  Bool_t   pmt_flag[kMaxNEvents][kNPMTs];
+
+  Double_t rf_time[kMaxNEvents];
+  Bool_t   inBeamWindow[kMaxNEvents];
+  Bool_t   isBeamTrigger[kMaxNEvents];
+
+  Double_t timeWt[kMaxNEvents];
+
+  // Other member variables
+  TCanvas* fCanvas;
+  Bool_t   fCalibration;
+  Bool_t   fViewerMode;
 
   // functions
-  PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root");
+  PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root", Bool_t CalibrationMode=false, Bool_t ViewerMode=false);
   ~PDSAnalysis();
   
-  TTree* ImportTree(TString fiName, TString treeName);
-  TTree* SetupNewTree();
+  TTree* ImportTree(TString fiName);
+  TTree* SetupNewTree(TString foName);
   
-  void Loop(TTree* pdsTree, TTree* outTree);
-  void DoEventAnalysis(Int_t i);
-  void RemoveADCOffset(TH1F* h);
-  Bool_t IsEvent();
-  TH1F* PMTSum();
-  std::vector<TH1F*> PMTHists();
-  Double_t Integral(TH1F* h, Int_t peak, Double_t pmtThreshold);
-  Int_t FindPeak(TH1F* h);
-  Double_t TriggerOffset(TH1F* h, Int_t peak_time, Double_t pmtThreshold);
-  Double_t RecursiveQuadInter(TH1F* h, UInt_t time[3], Double_t p);
-  Double_t CheckBeamWindow(Int_t peak);
+  void Loop();
+  void DoEventAnalysis(Int_t start, Int_t end);
+  void DoPMTAnalysis(Int_t subevent, Int_t pmt);
+  void DoPDSAnalysis(Int_t subevent);
+  
+  Bool_t IsPMTEvent(TH1* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time);
+  Bool_t IsPDSEvent(TH1* h, Int_t subevent, std::vector<Int_t> peak_time);
 
-  void PrintInfo();
-  void DrawEvent(Int_t i);
+  TH1F* GetPMT(Int_t pmt);
+  TH1F* GetPMTSum();
+  TH1F* GetRFMean();
+  Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
+
+  std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
+  Double_t FindEvTime(TH1F* h, Int_t peak_time);
+  Double_t FindRFTime(TH1F* h);
+  Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time);
+  Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time);
+  Double_t Integral(TH1F* h, Int_t peak_time);
+
+  Double_t QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_t p);
+
+  void ConvertUnits(Int_t subevent);
+
+  void PrintEvent(Int_t subevent);
+  void DrawEvent(Int_t subevent);
 };
