@@ -305,7 +305,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   TH1F* hRF = GetRFMean();
   RemoveADCOffset(hRF);
   rf_time[subevent] = FindRFTime(hRF);
-  inBeamWindow[subevent]  = (rf_time[subevent] == -9999);
+  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999);
   isBeamTrigger[subevent] = (subevent == 0);
 
   // Time weighting
@@ -381,7 +381,7 @@ TH1F* PDSAnalysis::GetPMTSum()
     UInt_t channel = pmt % 5;
     
     for( UInt_t sample = 0; sample < fNSamples; sample++ )
-      h->Fill(sample, fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
+      h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
   }
 
   return h;
@@ -397,6 +397,7 @@ TH1F* PDSAnalysis::GetRFMean()
     for( UInt_t sample = 0; sample < fNSamples; sample++ )
       h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
   }
+  h->Scale(1.0/3);
   
   return h;
 }
@@ -495,7 +496,7 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
   // Interpolates the 10%-peak time (maximum half width at base = 100ns)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
   for( Int_t sample = peak_time; sample > peak_time - 25; sample-- ) 
-    if( Abs( h->GetBinContent(sample) ) < peak_10p ) {
+    if( Abs( h->GetBinContent(sample) ) < Abs(peak_10p) ) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt, 
 			   h->GetBinLowEdge(sample+2)+dt };
@@ -510,7 +511,7 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h)
 {
   // Interpolates the RF-threshold crossing time
   for( UInt_t sample = kTrigger - kBeamSearchWindow_pre; sample < kTrigger + kBeamSearchWindow_post; sample++ )
-    if( Abs( h->GetBinContent(sample) ) > kRFThreshold ) {
+    if( Abs( h->GetBinContent(sample) ) > Abs(kRFThreshold) ) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt,
 			   h->GetBinLowEdge(sample+2)+dt };
@@ -525,7 +526,7 @@ Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time)
 {
   // Only integrates the negative peaks
   Double_t integral = 0;
-  if( peak_time[0] = -9999 ) return 0;
+  if( peak_time[0] == -9999 ) return 0;
   for( UInt_t peak = 0; peak < peak_time.size(); peak++ )
     if( h->GetBinContent(peak_time[peak]) < 0 ) {
       integral += Integral(h, peak_time[peak]);
@@ -537,7 +538,7 @@ Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
 {
   // Integrates all peaks
   Double_t integral = 0;
-  if( peak_time[0] = -9999 ) return 0;
+  if( peak_time[0] == -9999 ) return 0;
   for( UInt_t peak = 0; peak < peak_time.size(); peak++ )
     integral += Integral(h, peak_time[peak]);
   return integral;
@@ -621,8 +622,8 @@ Double_t PDSAnalysis::QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_
 void PDSAnalysis::ConvertUnits(Int_t subevent)
 {
   pds_time[subevent] *= kTick_to_ns;
-  pds_peak[subevent] *= 1.;
-  pds_integral[subevent] *= kTick_to_ns * 1.;
+  pds_peak[subevent] *= -1.;
+  pds_integral[subevent] *= kTick_to_ns * -1.;
   rf_time[subevent] *= kTick_to_ns;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     pmt_time[subevent][pmt] *= kTick_to_ns;
@@ -640,7 +641,8 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 	    << "Sub Ev#" << subevent << "\t"
 	    << "PDS Ev#" << pds_evno[subevent] << "\n"
 	    << "GPS:" << Form("%.30g", gps_s + gps_ns*1e-9) << "\n"
-	    << "RF:" << Form("%.6g",rf_time[subevent]) << "\n"
+	    << "RF:" << Form("%.6g",rf_time[subevent]) << "\t"
+	    << "BEAM?:" << inBeamWindow[subevent] << "\n"
 	    << "PMT:  \tTIME: \tPEAK: \tINT:  \tBL:   \tFLAG?:" << "\n"
 	    << "PDS" << "\t" << Form("%.6g",pds_time[subevent]) << "\t"
 	    << Form("%.5g",pds_peak[subevent]) << "\t"
@@ -651,7 +653,7 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
     std::cout << pmt + 1 << "\t"
 	      << Form("%.6g",pmt_time[subevent][pmt]) << "\t"
 	      << Form("%.5g",pmt_peak[subevent][pmt]) << "\t"
-	      << Form("%.5g",pmt_integral[subevent][pmt]) << "\t"
+	      << Form("%.4g",pmt_integral[subevent][pmt]) << "\t"
 	      << Form("%.5g",pmt_offset[subevent][pmt]) << "\t"
 	      << pmt_flag[subevent][pmt] << "\n";
   std::cout << std::endl;
@@ -668,8 +670,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
   Double_t xmin = kTrigger - kPeakSearchWindow_pre;
   Double_t xmax = kTrigger + kPeakSearchWindow_post;
-  Double_t ymin = -100;
-  Double_t ymax = +250;
+  Double_t ymin = -150;
+  Double_t ymax = +150;
 
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
@@ -715,7 +717,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   else
     hRF->SetLineColor(kRed + 2);
   hRF->Draw("l same");
-
+  
   // Draw RF lines
   if( inBeamWindow[subevent] ) {
     TLine* l_time = new TLine(rf_time[subevent], ymin, rf_time[subevent], ymax);
@@ -746,7 +748,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
       l_time->SetLineStyle(3);
       l_time->Draw("same");
 
-      TLine* l_peak = new TLine(xmin, pmt_peak[subevent][pmt], xmax, pmt_peak[subevent][pmt]);
+      TLine* l_peak = new TLine(xmin, pmt_peak[subevent][pmt]+10*pmt, xmax, pmt_peak[subevent][pmt]+10*pmt);
       pmt_lines->Add(l_peak);
       l_peak->SetLineColor(kViolet);
       l_peak->SetLineStyle(3);
@@ -755,6 +757,12 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   }
 
   fCanvas->Update();
+
+  if( !fCanvas->IsBatch() ) {
+    std::cout << "Press any key to continue..." << std::endl;
+    char* s = new char[1];
+    gets(s);
+  }
 
   pmt_hists->Delete();
   pmt_lines->Delete();
