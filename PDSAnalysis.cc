@@ -77,6 +77,7 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
 
   fPMTTree = ImportTree(fiName);
   fAnalysisTree = SetupNewTree(foName);
+  InitializeADC_to_pe();
   
   Loop();
   
@@ -194,7 +195,8 @@ void PDSAnalysis::Loop()
 	
 	// Save
 	fAnalysisTree->Fill();
-      }
+	i++;
+      } else i++;
     } else i++;
     
   }
@@ -234,7 +236,7 @@ void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
     DoPDSAnalysis(subevent);
 
     // Draw event
-    if( pds_evno[subevent]%(fPMTTree->GetEntries()/10)==0 )
+    if( pds_evno[subevent] % (fPMTTree->GetEntries()/10)==1 )
       PrintEvent(subevent);
     if( fViewerMode ) {
       PrintEvent(subevent);
@@ -272,6 +274,8 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
 
   // Flag if not noise
   pmt_flag[subevent][pmt] = IsPMTEvent(hPMT, subevent, pmt, peak_time);
+
+  hPMT->Delete();
 }
 
 void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
@@ -405,14 +409,14 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   Double_t offset_min = 0.0; 
 
   UInt_t n = 25;
-  UInt_t start = 0;
+  UInt_t start = 1;
   UInt_t end = n + start;
 
   Double_t sum = n;
   Double_t sumsq = Power(n, 2);
-  Double_t stddev = Sqrt(sumsq/n - sum/n);
-  Double_t stddev_min = Sqrt(sumsq/n - sum/n);
-  while( stddev > 1 && end < fNSamples ) {
+  Double_t stddev = Sqrt(sumsq/n - Power(sum/n,2));
+  Double_t stddev_min = Sqrt(sumsq/n - Power(sum/n,2));
+  while( stddev > 0.75 && end < fNSamples ) {
     sum = 0;
     sumsq = 0;
     for( UInt_t sample = start; sample < end; sample++ ) {
@@ -420,7 +424,7 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
       sumsq += Power(h->GetBinContent(sample), 2);
     }
     offset = sum/n;
-    stddev = Sqrt(sumsq/n - sum/n);
+    stddev = Sqrt(sumsq/n - Power(sum/n,2));
     if( stddev < stddev_min ) {
       offset_min = offset;
       stddev_min = stddev;
@@ -432,7 +436,8 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   for( UInt_t sample = 0; sample < fNSamples; sample++ )
     h->Fill(sample, -offset + left_offset);
 
-  std::cout << "Minimum std. dev. for offset: " << stddev_min << std::endl;
+  //  std::cout << "start" << start << "\tend" << end << std::endl;
+  //  std::cout << "Minimum std. dev. for offset: " << stddev_min << std::endl;
   return offset_min;
 }
 
@@ -451,16 +456,15 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     threshold = kPMTThreshold / kADC_to_pe[pmt];
 
   // Find global minimum
-  std::vector<Int_t> peak_time;
-  peak_time.push_back(-9999);
-  for( UInt_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post; sample++ ) 
-    if( Abs( h->GetBinContent(sample) ) > threshold ) 
+  std::vector<Int_t> peak_time(1,-9999);
+  for( UInt_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post; sample++ ) {
+    if( Abs( h->GetBinContent(sample) ) > threshold ) {
       if( peak_time[0] == -9999 )
 	peak_time[0] = sample;
       else if( h->GetBinContent(sample) < h->GetBinContent(peak_time[0]) )
 	peak_time[0] = sample;
-
-  std::cout << "Here" << peak_time[0] << std::endl;
+    }
+  }
   
   // Find triplet peaks
   if( peak_time[0] != -9999 ) {
@@ -542,7 +546,7 @@ Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
 Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
 {
   // Integrates peak across 10%-peak width
-  Double_t peak_10p = h->GetBinContent(peak_time);
+  Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
   Double_t integral = 0;
   UInt_t sample = peak_time;
   // Backwards from peak
@@ -578,7 +582,7 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
   x0 = h->GetBinLowEdge(sample-1)+dt;
   dx = x1 - x0;
   y  = (h->GetBinContent(sample-1) + peak_10p)/2;
-  integral += y* dx;
+  integral += y * dx;
 
   return integral;
 }
@@ -641,14 +645,14 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 	    << "PDS" << "\t" << Form("%.6g",pds_time[subevent]) << "\t"
 	    << Form("%.5g",pds_peak[subevent]) << "\t"
 	    << Form("%.5g",pds_integral[subevent]) << "\t"
-	    << Form("%.6g",pds_offset[subevent]) << "\t"
+	    << Form("%.5g",pds_offset[subevent]) << "\t"
 	    << pds_flag[subevent] << "\n";
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
     std::cout << pmt + 1 << "\t"
 	      << Form("%.6g",pmt_time[subevent][pmt]) << "\t"
 	      << Form("%.5g",pmt_peak[subevent][pmt]) << "\t"
 	      << Form("%.5g",pmt_integral[subevent][pmt]) << "\t"
-	      << Form("%.6g",pmt_offset[subevent][pmt]) << "\t"
+	      << Form("%.5g",pmt_offset[subevent][pmt]) << "\t"
 	      << pmt_flag[subevent][pmt] << "\n";
   std::cout << std::endl;
 }
