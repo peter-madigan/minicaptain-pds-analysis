@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 source /project/projectdirs/captain/releases/CAPTAIN/captain.profile
 
 runs=( 9996 9995 9994 9992 9991 )

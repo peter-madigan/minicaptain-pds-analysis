@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 cd /global/homes/p/pmadigan/work/pds_analysis/pds_analysisCode
 source /project/projectdirs/captain/releases/CAPTAIN/captain.profile
 
