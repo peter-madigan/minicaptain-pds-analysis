@@ -23,7 +23,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 const Double_t PDSAnalysis::kSumThreshold      = 2.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.25; // pe
-const Double_t PDSAnalysis::kIntegralThreshold = 50.0; // ADC ticks
+const Double_t PDSAnalysis::kIntegralThreshold = 10.0; // ADC ticks
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 150; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; // 1600ns Ar triplet lifetime
@@ -35,23 +35,23 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
+  kADC_to_pe.push_back(-1.); // Dead pmt
+  kADC_to_pe.push_back(-1./6.421);
+  kADC_to_pe.push_back(-1./5.777);
+  kADC_to_pe.push_back(-1./6.343);
+  kADC_to_pe.push_back(-1./7.541);
 
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
+  kADC_to_pe.push_back(-1./4.592);
+  kADC_to_pe.push_back(-1./5.513);
+  kADC_to_pe.push_back(-1./4.187);
+  kADC_to_pe.push_back(-1./7.363);
+  kADC_to_pe.push_back(-1./7.482);
 
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
-  kADC_to_pe.push_back(-1.);
+  kADC_to_pe.push_back(-1./5.908);
+  kADC_to_pe.push_back(-1./5.625);
+  kADC_to_pe.push_back(-1./7.522);
+  kADC_to_pe.push_back(-1./6.101);
+  kADC_to_pe.push_back(-1./6.964);
 
   if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
@@ -167,43 +167,47 @@ void PDSAnalysis::Loop()
   tpc_evno = 0;
   UInt_t i = 0; // TPC start variable
   UInt_t j = 1; // TPC end variable
-  while( fPMTTree->GetEntry(i) ) {
-    // Check if current event has a gps signature
-    TPC0 = (fGPS_s + fGPS_ns > 0);
-    if( TPC0 ) {
-      // Check if next event has a gps signature
-      j = i+1;
-      fPMTTree->GetEntry(j);
-      TPC1 = (fGPS_s + fGPS_ns > 0);
-      if( TPC1 ) {
-	// New TPC trigger
-	tpc_evno++;
-	j++;
-	while( fPMTTree->GetEntry(j) ) {
+  if( !fCalibration ) {
+    while( fPMTTree->GetEntry(i) ) {
+      // Check if current event has a gps signature
+      TPC0 = (fGPS_s + fGPS_ns > 0);
+      if( TPC0 ) {
+	// Check if next event has a gps signature
+	j = i+1;
+	fPMTTree->GetEntry(j);
+	TPC1 = (fGPS_s + fGPS_ns > 0);
+	if( TPC1 ) {
+	  // New TPC trigger
+	  tpc_evno++;
+	  j++;
+	  while( fPMTTree->GetEntry(j) ) {
 	  // Find end of TPC trigger
-	  TPC1 = (fGPS_s + fGPS_ns > 0);
-	  if( TPC1 ) {
-	    // j - 1 is end of TPC trigger
+	    TPC1 = (fGPS_s + fGPS_ns > 0);
+	    if( TPC1 ) {
+	      // j - 1 is end of TPC trigger
 	    j--;
 	    break;
+	    }
+	    else j++;
 	  }
-	  else j++;
-	}
-	if( !fPMTTree->GetEntry(j) ) j--;
-	// Do analysis between tpc start and end
-	DoEventAnalysis(i,j);
-	
-	// Save
-	fAnalysisTree->Fill();
-	i++;
-      } else i++;
-    } else i++;
-    
+	  if( !fPMTTree->GetEntry(j) ) j--;
+	  // Do analysis between tpc start and end
+	  if( j>i ) DoEventAnalysis(i,j);
+	  else { i++; continue; }
+	  
+	  // Save
+	  fAnalysisTree->Fill();
+	  i++;
+	} else i++;
+      } else i++;  
+    }
   }
-  
   // No tpc trigger found -> do cosmic analysis
-  if( tpc_evno == 0) {
-    std::cout << "No tpc triggers found. Re-analyzing without tpc event grouping..." << std::endl;
+  if( tpc_evno == 0 ) {
+    if( !fCalibration )
+      std::cout << "No tpc triggers found. Re-analyzing without tpc event grouping..." << std::endl;
+    else
+      std::cout << "Looping in calibration mode..." << std::endl;
     while( fPMTTree->GetEntry(i) ) {
       // Do single event analysis
       DoEventAnalysis(i, i);
@@ -232,7 +236,7 @@ void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
     }
 
     // Do overall analysis
-    pds_evno[subevent] = start + subevent + 1;
+    pds_evno[subevent] = start + subevent;
     DoPDSAnalysis(subevent);
 
     // Draw event
@@ -284,7 +288,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   pds_offset[subevent] = RemoveADCOffset(hPMT);
 
   // Find peaks in histogram   
-  std::vector<Int_t> peak_time = FindPeaks(hPMT, 15);
+  std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
   if( peak_time[0] != -9999 ) {
     pds_peak[subevent] = hPMT->GetBinContent(peak_time[0]);
     pds_time[subevent] = FindEvTime(hPMT, peak_time[0]);
@@ -450,16 +454,16 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = 3;
-  else if( pmt == 15 )
-    threshold = kSumThreshold;
+    threshold = -3;
+  else if( pmt < 0 )
+    threshold = -kSumThreshold;
   else
-    threshold = kPMTThreshold / kADC_to_pe[pmt];
+    threshold = -kPMTThreshold / kADC_to_pe[pmt];
 
   // Find global minimum
   std::vector<Int_t> peak_time(1,-9999);
   for( UInt_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post; sample++ ) {
-    if( Abs( h->GetBinContent(sample) ) > threshold ) {
+    if( h->GetBinContent(sample) < threshold ) {
       if( peak_time[0] == -9999 )
 	peak_time[0] = sample;
       else if( h->GetBinContent(sample) < h->GetBinContent(peak_time[0]) )
@@ -493,9 +497,9 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
 
 Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 {
-  // Interpolates the 10%-peak time (maximum half width at base = 100ns)
+  // Interpolates the 10%-peak time (maximum half width at base = 200ns)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
-  for( Int_t sample = peak_time; sample > peak_time - 25; sample-- ) 
+  for( Int_t sample = peak_time; sample > peak_time - 50; sample-- ) 
     if( Abs( h->GetBinContent(sample) ) < Abs(peak_10p) ) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt, 
@@ -640,7 +644,7 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 	    << "TPC Ev#" << tpc_evno << "\t"
 	    << "Sub Ev#" << subevent << "\t"
 	    << "PDS Ev#" << pds_evno[subevent] << "\n"
-	    << "GPS:" << Form("%.30g", gps_s + gps_ns*1e-9) << "\n"
+	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
 	    << "RF:" << Form("%.6g",rf_time[subevent]) << "\t"
 	    << "BEAM?:" << inBeamWindow[subevent] << "\n"
 	    << "PMT:  \tTIME: \tPEAK: \tINT:  \tBL:   \tFLAG?:" << "\n"

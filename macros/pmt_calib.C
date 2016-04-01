@@ -26,6 +26,7 @@ void pmt_calib() {
   ch->Draw("pmt_integral>>hNotNoise","pmt_flag","e goff");
   c_noise -> cd();
   h_noise -> Draw("e");
+  h_notNoise->SetLineColor(kRed+2);
   h_notNoise -> Draw("e same");
 
   TF1* gaus = new TF1("gaussian","gaus",0,20);
@@ -93,6 +94,7 @@ void pmt_calib() {
 
   c_peak -> SaveAs("plots/pmt_calib-peak.C");
   c_bl   -> SaveAs("plots/pmt_calib-baseline.C");
+  c_noise-> SaveAs("plots/pmt_calib-noise.C");
 
   std::cout << "Total triggers: " << ch->GetEntries() << std::endl;
 
