@@ -22,7 +22,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
 const Double_t PDSAnalysis::kSumThreshold      = 2.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 0.25; // pe
+const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold = 10.0; // ADC ticks
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 150; // ticks vvv
@@ -308,8 +308,8 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   // Check beam
   TH1F* hRF = GetRFMean();
   RemoveADCOffset(hRF);
-  rf_time[subevent] = FindRFTime(hRF);
-  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999) || (subevent == 0);
+  rf_time[subevent] = FindRFTime(hRF, Floor(pds_time[subevent]));
+  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999) || isBeamTrigger[subevent];
   isBeamTrigger[subevent] = (subevent == 0);
 
   // Time weighting
@@ -409,7 +409,7 @@ TH1F* PDSAnalysis::GetRFMean()
 Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset) 
 {
   // calculates an offset from a 100ns interval
-  // returns the offset with a std. dev. < 0.5 ADC or the offset with the smallest std. dev. (the faster of the two)
+  // returns the offset with a std. dev. < 0.75 ADC or the offset with the smallest std. dev. (the faster of the two)
   Double_t offset = 0.0;
   Double_t offset_min = 0.0; 
 
@@ -497,6 +497,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
 
 Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 {
+  Double_t ev_time = -9999;
+  
   // Interpolates the 10%-peak time (maximum half width at base = 200ns)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
   for( Int_t sample = peak_time; sample > peak_time - 50; sample-- ) 
@@ -506,15 +508,27 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 			   h->GetBinLowEdge(sample+2)+dt };
       Double_t values[] = { h->GetBinContent(sample), h->GetBinContent(sample+1), 
 			    h->GetBinContent(sample+2) };
-      return QuadraticInterpolate( values, times, peak_10p );
+      ev_time = QuadraticInterpolate( values, times, peak_10p );
+      break;
     }
-  return -9999;
+  if( ev_time > fNSamples || ev_time < 1 ) {
+    if( ev_time != -9999 )
+      std::cout << "ERROR: Event time is " << ev_time << "!" << std::endl;
+    return -9999;
+  } else
+    return ev_time;
 }
 
-Double_t PDSAnalysis::FindRFTime(TH1F* h)
+Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
 {
+  Int_t start;
+  if( ev_time < 0 || ev_time > fNSamples )
+    start = kTrigger;
+  else
+    start = ev_time;
+
   // Interpolates the RF-threshold crossing time
-  for( UInt_t sample = kTrigger - kBeamSearchWindow_pre; sample < kTrigger + kBeamSearchWindow_post; sample++ )
+  for( Int_t sample = start - kBeamSearchWindow_pre; sample < start + kBeamSearchWindow_post; sample++ ) {
     if( Abs( h->GetBinContent(sample) ) > Abs(kRFThreshold) ) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt,
@@ -523,6 +537,7 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h)
                             h->GetBinContent(sample+2) };
       return QuadraticInterpolate( values, times, kRFThreshold );
     }
+  }
   return -9999;
 }
 
@@ -672,8 +687,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   TObjArray* pmt_hists = new TObjArray();
   TObjArray* pmt_lines = new TObjArray();
 
-  Double_t xmin = kTrigger - kPeakSearchWindow_pre;
-  Double_t xmax = kTrigger + kPeakSearchWindow_post;
+  Double_t xmin = pds_time[subevent] - kPeakSearchWindow_pre;
+  Double_t xmax = pds_time[subevent] + kPeakSearchWindow_post;
   Double_t ymin = -150;
   Double_t ymax = +150;
 

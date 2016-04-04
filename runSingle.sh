@@ -25,7 +25,7 @@ if [ -d $datadir/run$runno ]; then
 	if [ ! ${infile: -5} == ".root" ]; then
 	    echo "...is a ${infile: -5} file. Skipping..."
 	else
-	    root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",true)"
+	    root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\")"
 	    let "i++"
 	fi
     done

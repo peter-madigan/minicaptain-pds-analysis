@@ -111,7 +111,7 @@ class PDSAnalysis
 
   std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
   Double_t FindEvTime(TH1F* h, Int_t peak_time);
-  Double_t FindRFTime(TH1F* h);
+  Double_t FindRFTime(TH1F* h, Int_t ev_time);
   Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time);
   Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time);
   Double_t Integral(TH1F* h, Int_t peak_time);
