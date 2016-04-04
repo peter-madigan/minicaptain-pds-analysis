@@ -1,4 +1,4 @@
-Double_t calib_time = -900.5e-9; // 2016-4-4 pmadigan
+Double_t calib_time = -700e-9; // 2016-4-4 pmadigan
 Double_t time_err   = 4e-9; // sec -- overestimate
 Double_t tof_length = 23.18; // m -- 2016-3 pmadigan
 Double_t length_err = 0.01; // m 
@@ -12,6 +12,7 @@ using namespace TMath;
 void tof_to_spectrum() {
   gROOT -> ProcessLine(".X chainFiles.C");
 
+  UInt_t runno;
   Int_t pds_nevent;
   Double_t pds_peak[1000];
   Double_t pds_integral[1000];
@@ -21,6 +22,7 @@ void tof_to_spectrum() {
   Bool_t  inBeamWindow[1000];
   Bool_t  isBeamTrigger[1000];
     
+  pdsEvTree -> SetBranchAddress("runno", &runno);
   pdsEvTree -> SetBranchAddress("pds_nevent", &pds_nevent);
   pdsEvTree -> SetBranchAddress("pds_peak",    pds_peak);
   pdsEvTree -> SetBranchAddress("pds_integral",pds_integral);
@@ -45,6 +47,7 @@ void tof_to_spectrum() {
   TH2F* h_integral = new TH2F("h_integral",";Neutron p (MeV/c);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,1e3);
   for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
     for( Int_t jentry = 0; jentry < pds_nevent; jentry++ ) {
+      if( (runno >= 6235 && runno >= 6254) ) 
       if( pds_flag[jentry] && inBeamWindow[jentry] && !(pds_integral[jentry] < 75)) {
 	Double_t time = (pds_time[jentry] - rf_time[jentry]) * 1e-9;
 	Double_t p = time_to_p(time);

@@ -3,12 +3,14 @@ void tof_charge() {
   Double_t ymax = 1e2;
   Double_t xmin = -1.7e3;
   Double_t xmax = 100;
-  Int_t nbinsx = (xmax - xmin)/4;
+  Int_t nbinsx = (xmax - xmin)/2;
   Int_t nbinsy = 150;
 
-  TString run_cut = "";//" && ( (runno >= 6235 && runno >= 6254)"; // low
+  TString run_cut = " && ( 0"; // low
+  run_cut += " || (runno >= 6235 && runno >= 6254)"; // low
   //  run_cut += " || (runno >= 6139 && runno <= 6234)"; // med1
-  //  run_cut += " || (runno >= 6260 && runno <= 6299) )"; // med2 
+  //  run_cut += " || (runno >= 6260 && runno <= 6299)"; // med2 
+  run_cut += " )";
 
   TString int_cut = " && !(pds_integral < 75)";
   TString time_cut = "&& 1"; //" && !(abs(pds_time - 3100) < 300)";
@@ -38,18 +40,24 @@ void tof_charge() {
   //pdsEvTree->Draw("pds_peak:pds_integral>>h_shape", 
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape(%d,%f,%f,%d,%f,%f)",
                        250,20.,2500.,250,2.,100.),
-                  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+                  "pds_flag && inBeamWindow"+run_cut+time_cut, "colz");
   c1->cd()->SetLogz();
-  /*
+  
   c1->DrawClone();
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shapeg(%d,%f,%f,%d,%f,%f)",
                        250,20.,2500.,250,2.,100.),
-                  "(pds_time-rf_time < -850 && pds_time-rf_time > -1000) && pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+                  "(pds_time-rf_time < -680 && pds_time-rf_time > -760) && pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
 
   c1->DrawClone();
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shapen(%d,%f,%f,%d,%f,%f)",
                        250,20.,2500.,250,2.,100.),
-                  "(pds_time-rf_time > -850 && pds_time-rf_time < -300) && pds_flag && inBeamWindo\
+                  "(pds_time-rf_time > -680 && pds_time-rf_time < -500) && pds_flag && inBeamWindo\
 w"+run_cut+int_cut+time_cut, "colz");
-  */
+  
+
+  c1->DrawClone();
+  pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shaped(%d,%f,%f,%d,%f,%f)",
+                       250,20.,2500.,250,2.,100.),
+                  "(pds_time-rf_time < -120 && pds_time-rf_time > -180) && pds_flag && inBeamWindow\
+"+run_cut+int_cut+time_cut, "colz");
 }
