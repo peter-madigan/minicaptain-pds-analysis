@@ -36,23 +36,23 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
-  kADC_to_pe.push_back(-1.); // Dead pmt
-  kADC_to_pe.push_back(-1./6.421);
-  kADC_to_pe.push_back(-1./5.777);
-  kADC_to_pe.push_back(-1./6.343);
-  kADC_to_pe.push_back(-1./7.541);
+  kADC_to_pe.push_back(-1./1.000); // #1 Dead pmt
+  kADC_to_pe.push_back(-1./8.761); // #2
+  kADC_to_pe.push_back(-1./8.517); // #3
+  kADC_to_pe.push_back(-1./9.614); // #4
+  kADC_to_pe.push_back(-1./8.912); // #5
 
-  kADC_to_pe.push_back(-1./4.592);
-  kADC_to_pe.push_back(-1./5.513);
-  kADC_to_pe.push_back(-1./4.187);
-  kADC_to_pe.push_back(-1./7.363);
-  kADC_to_pe.push_back(-1./7.482);
+  kADC_to_pe.push_back(-1./7.116); // #6
+  kADC_to_pe.push_back(-1./7.750); // #7
+  kADC_to_pe.push_back(-1./10.50); // #8 
+  kADC_to_pe.push_back(-1./9.388); // #9
+  kADC_to_pe.push_back(-1./8.643); // #10
 
-  kADC_to_pe.push_back(-1./5.908);
-  kADC_to_pe.push_back(-1./5.625);
-  kADC_to_pe.push_back(-1./7.522);
-  kADC_to_pe.push_back(-1./6.101);
-  kADC_to_pe.push_back(-1./6.964);
+  kADC_to_pe.push_back(-1./7.967); // #11
+  kADC_to_pe.push_back(-1./7.999); // #12
+  kADC_to_pe.push_back(-1./10.79); // #13
+  kADC_to_pe.push_back(-1./8.063); // #14
+  kADC_to_pe.push_back(-1./8.649); // #15
 
   if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
