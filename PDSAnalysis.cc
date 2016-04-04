@@ -20,13 +20,13 @@ using namespace TMath;
 const Int_t    PDSAnalysis::kTrigger        = 848;
 const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
-const Double_t PDSAnalysis::kSumThreshold      = 2.00; // pe
+const Double_t PDSAnalysis::kSumThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold = 10.0; // ADC ticks
 
-const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 150; // ticks vvv
-const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; // 1600ns Ar triplet lifetime
+const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
+const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; //           - 1600ns Ar triplet lifetime
 const Int_t    PDSAnalysis::kBeamSearchWindow_post = 400;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 0;
 
@@ -522,23 +522,31 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
 Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
 {
   Int_t start;
+  Double_t rf_time = -9999;
   if( ev_time < 0 || ev_time > fNSamples )
     start = kTrigger;
   else
     start = ev_time;
 
   // Interpolates the RF-threshold crossing time
-  for( Int_t sample = start - kBeamSearchWindow_pre; sample < start + kBeamSearchWindow_post; sample++ ) {
-    if( Abs( h->GetBinContent(sample) ) > Abs(kRFThreshold) ) {
+  for( Int_t sample = start; sample < start + kBeamSearchWindow_post; sample++ ) {
+    if( h->GetBinContent(sample) < -kRFThreshold ) {
       Double_t dt = h->GetBinWidth(sample)/2;
-      Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt,
-			   h->GetBinLowEdge(sample+2)+dt };
-      Double_t values[] = { h->GetBinContent(sample), h->GetBinContent(sample+1),
-                            h->GetBinContent(sample+2) };
-      return QuadraticInterpolate( values, times, kRFThreshold );
+      Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
+			   h->GetBinLowEdge(sample+1)+dt };
+      Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
+                            h->GetBinContent(sample+1) };
+      rf_time = QuadraticInterpolate( values, times, -kRFThreshold );
+      break;
     }
   }
-  return -9999;
+
+  if( rf_time < 1 || rf_time > fNSamples )
+    if( rf_time != -9999 ) {
+      std::cout << "ERROR: RF time is " << rf_time << "!" << std::endl;
+      return -9999;
+    }
+  return rf_time;
 }
 
 Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time) 
@@ -687,7 +695,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   TObjArray* pmt_hists = new TObjArray();
   TObjArray* pmt_lines = new TObjArray();
 
-  Double_t xmin = pds_time[subevent] - kPeakSearchWindow_pre;
+  Double_t xmin = kTrigger - kPeakSearchWindow_pre;
   Double_t xmax = pds_time[subevent] + kPeakSearchWindow_post;
   Double_t ymin = -150;
   Double_t ymax = +150;
@@ -713,6 +721,17 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   l_trig->Draw("same");
 
   if( pds_flag[subevent] ) {
+    TLine* l_threshold1 = new TLine(xmin, kSumThreshold-50, xmax, kSumThreshold-50);
+    TLine* l_threshold2 = new TLine(xmin, -kSumThreshold-50, xmax, -kSumThreshold-50);
+    pmt_lines->Add(l_threshold1);
+    pmt_lines->Add(l_threshold2);
+    l_threshold1->SetLineColor(kBlue + 2);
+    l_threshold2->SetLineColor(kBlue + 2);
+    l_threshold1->SetLineStyle(2);
+    l_threshold2->SetLineStyle(2);
+    l_threshold1->Draw("same");
+    l_threshold2->Draw("same");
+    
     TLine* l_time = new TLine(pds_time[subevent], ymin, pds_time[subevent], ymax);
     pmt_lines->Add(l_time);
     l_time->SetLineColor(kSpring + 2);
@@ -729,6 +748,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   // Draw RF mean
   TH1F* hRF = GetRFMean();
   pmt_hists->Add(hRF);
+  hRF->Scale(1./30);
   RemoveADCOffset(hRF,-25);
   hRF->GetXaxis()->SetRangeUser(xmin,xmax);
   hRF->GetYaxis()->SetRangeUser(ymin,ymax);
@@ -740,6 +760,12 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   
   // Draw RF lines
   if( inBeamWindow[subevent] ) {
+    TLine* l_thresh = new TLine(xmin, -kRFThreshold/30-25, xmax, -kRFThreshold/30-25);
+    pmt_lines->Add(l_thresh);
+    l_thresh->SetLineColor(kRed + 2);
+    l_thresh->SetLineStyle(2);
+    l_thresh->Draw("same");
+
     TLine* l_time = new TLine(rf_time[subevent], ymin, rf_time[subevent], ymax);
     pmt_lines->Add(l_time);
     l_time->SetLineColor(kGreen + 2);
@@ -762,6 +788,17 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
     // Draw PMT lines
     if( pmt_flag[subevent][pmt] ) {
+      TLine* l_threshold1 =new TLine(xmin, kPMTThreshold/kADC_to_pe[pmt]+pmt*10, xmax, kPMTThreshold/kADC_to_pe[pmt]+pmt*10);
+      TLine* l_threshold2 = new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*10, xmax, -kPMTThreshold/kADC_to_pe[pmt]+pmt*10);
+      pmt_lines->Add(l_threshold1);
+      pmt_lines->Add(l_threshold2);
+      l_threshold1->SetLineColor(kBlue);
+      l_threshold2->SetLineColor(kBlue);
+      l_threshold1->SetLineStyle(3);
+      l_threshold2->SetLineStyle(3);
+      l_threshold1->Draw("same");
+      l_threshold2->Draw("same");
+      
       TLine* l_time = new TLine(pmt_time[subevent][pmt], ymin, pmt_time[subevent][pmt], ymax);
       pmt_lines->Add(l_time);
       l_time->SetLineColor(kSpring);

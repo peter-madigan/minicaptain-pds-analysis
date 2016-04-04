@@ -1,4 +1,4 @@
-Double_t calib_time = -668e-9;//-666.3e-9; // 2016-3-28 pmadigan
+Double_t calib_time = -900.5e-9; // 2016-4-4 pmadigan
 Double_t time_err   = 4e-9; // sec -- overestimate
 Double_t tof_length = 23.18; // m -- 2016-3 pmadigan
 Double_t length_err = 0.01; // m 
@@ -17,35 +17,35 @@ void tof_to_spectrum() {
   Double_t pds_integral[1000];
   Double_t pds_time[1000];
   Double_t rf_time[1000];
-  Bool_t  pds_noise[1000];
+  Bool_t  pds_flag[1000];
   Bool_t  inBeamWindow[1000];
   Bool_t  isBeamTrigger[1000];
     
-  ch -> SetBranchAddress("pds_nevent", &pds_nevent);
-  ch -> SetBranchAddress("pds_peak",    pds_peak);
-  ch -> SetBranchAddress("pds_integral",pds_integral);
-  ch -> SetBranchAddress("pds_time",    pds_time);
-  ch -> SetBranchAddress("rf_time",     rf_time);
-  ch -> SetBranchAddress("pds_noise",   pds_noise);
-  ch -> SetBranchAddress("inBeamWindow",inBeamWindow);
-  ch -> SetBranchAddress("isBeamTrigger",isBeamTrigger);
+  pdsEvTree -> SetBranchAddress("pds_nevent", &pds_nevent);
+  pdsEvTree -> SetBranchAddress("pds_peak",    pds_peak);
+  pdsEvTree -> SetBranchAddress("pds_integral",pds_integral);
+  pdsEvTree -> SetBranchAddress("pds_time",    pds_time);
+  pdsEvTree -> SetBranchAddress("rf_time",     rf_time);
+  pdsEvTree -> SetBranchAddress("pds_flag",   pds_flag);
+  pdsEvTree -> SetBranchAddress("inBeamWindow",inBeamWindow);
+  pdsEvTree -> SetBranchAddress("isBeamTrigger",isBeamTrigger);
 
   Int_t nbinsx = 1000;
   Double_t xmin = 0;
   Double_t xmax = 2.5e3;
   Int_t nbinsy = 200;
   Double_t ymin= 0;
-  Double_t ymax= 50;
+  Double_t ymax= 100;
 
   Double_t energy;
   Double_t energy_err;
   TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron p (MeV/c);Count",nbinsx,xmin,xmax);
   h_spectrum -> Sumw2();
   TH2F* h_peak = new TH2F("h_peak",";Neutron p (MeV/c);PDS response (pe)",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
-  TH2F* h_integral = new TH2F("h_integral",";Neutron p (MeV/c);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,10e3);
-  for( Int_t ientry = 0; ch -> GetEntry(ientry); ientry++ ) {
+  TH2F* h_integral = new TH2F("h_integral",";Neutron p (MeV/c);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,1e3);
+  for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
     for( Int_t jentry = 0; jentry < pds_nevent; jentry++ ) {
-      if( !pds_noise[jentry] && inBeamWindow[jentry] && !isBeamTrigger[jentry] && !(pds_peak[jentry] < 7)) {
+      if( pds_flag[jentry] && inBeamWindow[jentry] && !(pds_integral[jentry] < 75)) {
 	Double_t time = (pds_time[jentry] - rf_time[jentry]) * 1e-9;
 	Double_t p = time_to_p(time);
 	Double_t E = Sqrt( Power(p,2) + Power(mass,2) );
