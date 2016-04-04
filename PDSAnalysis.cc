@@ -23,7 +23,8 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 const Double_t PDSAnalysis::kSumThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
-const Double_t PDSAnalysis::kIntegralThreshold = 10.0; // ADC ticks
+const Double_t PDSAnalysis::kIntegralThreshold_pmt = 20.0; // ADC ticks
+const Double_t PDSAnalysis::kIntegralThreshold_pds = 10.0; // pe ns
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; //           - 1600ns Ar triplet lifetime
@@ -337,7 +338,7 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
   if( pmt_time[subevent][pmt] == -9999 ) return false;
   if( pmt_peak[subevent][pmt] == -9999 ) return false;
   if( pmt_integral[subevent][pmt] == -9999 ) return false;
-  if( TotalIntegral(h,peak_time) > -kIntegralThreshold ) return false;
+  if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
   return true;
 }
 
@@ -346,7 +347,7 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_
   if( pds_time[subevent] == -9999 ) return false;
   if( pds_peak[subevent] == -9999 ) return false;
   if( pds_integral[subevent] == -9999 ) return false;
-  if( TotalIntegral(h,peak_time) > -kIntegralThreshold ) return false;
+  if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
   return true;
 }
 
@@ -696,7 +697,11 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   TObjArray* pmt_lines = new TObjArray();
 
   Double_t xmin = kTrigger - kPeakSearchWindow_pre;
-  Double_t xmax = pds_time[subevent] + kPeakSearchWindow_post;
+  Double_t xmax;
+  if( pds_time[subevent] > 0 )
+    xmax = pds_time[subevent] + kPeakSearchWindow_post;
+  else
+    xmax = kTrigger + kPeakSearchWindow_post;
   Double_t ymin = -150;
   Double_t ymax = +150;
 

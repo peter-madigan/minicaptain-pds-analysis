@@ -20,14 +20,20 @@ void pmt_calib() {
   ch->Add("calib/pdsTree9995/pdsEvTree*");
   ch->Add("calib/pdsTree9996/pdsEvTree*");
 
-  TH1F* h_noise = new TH1F("hNoise",";total integral;count",1000,-500,500);
+  TH1F* h_all = new TH1F("hAll",";total integral;count",1500,-1000,500);
+  TH1F* h_noise = new TH1F("hNoise",";total integral;count",1500,-1000,500);
   TH1F* h_notNoise = new TH1F("hNotNoise",";total integral;count",1000,-500,500);
+  ch->Draw("pmt_integral>>hAll","","e goff");
   ch->Draw("pmt_integral>>hNoise","!pmt_flag","e goff");
   ch->Draw("pmt_integral>>hNotNoise","pmt_flag","e goff");
   c_noise -> cd();
-  h_noise -> Draw("e");
+  h_all->SetLineColor(kBlack);
+  h_noise->SetLineColor(kBlue+2);
   h_notNoise->SetLineColor(kRed+2);
-  h_notNoise -> Draw("e same");
+  h_noise->Draw("e");
+  h_notNoise->Draw("e same");
+  h_all->Draw("e same");
+
 
   TF1* gaus = new TF1("gaussian","gaus",0,20);
   for( int pmt = 0; pmt < 15; pmt++ ) {
