@@ -16,8 +16,15 @@ if [ -d $datadir/run$runno ]; then
     echo "Run found!"
     i=0
     mkdir -v $outdir/pdsTree$runno
-    for infile in `ls "$datadir/run$runno"`; do
-	if [ -f "$infile" ] && [ -s "$infile" ] && [ "${infile: -5}" == ".root" ]; then
+    for infile in `ls $datadir/run$runno`; do
+	echo "Checking $infile..."
+	#if [ ! -f $infile ]; then
+	#    echo "...is directory. Skipping..."
+	#if [ ! -s $infile ]; then
+	#    echo "...is empty. Skipping..."
+	if [ ! ${infile: -5} == ".root" ]; then
+	    echo "...is a ${infile: -5} file. Skipping..."
+	else
 	    root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",true)"
 	    let "i++"
 	fi
@@ -25,3 +32,5 @@ if [ -d $datadir/run$runno ]; then
 else
     echo "ERROR: Run not found!"
 fi
+
+echo "Done!"

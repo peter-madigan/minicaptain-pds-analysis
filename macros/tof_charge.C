@@ -11,19 +11,19 @@ void tof_charge() {
   run_cut += " || (runno >= 6260 && runno <= 6299) )"; // med2 
 
   gROOT -> ProcessLine( ".X chainFiles.C" );
-  cout << ch -> GetEntries() << endl;
+  cout << "#Ev: " << ch -> GetEntries() << endl;
   ch->Draw(Form("pds_integral:pds_time-rf_time>>h_integral(%d,%f,%f,%d,%f,%f)",
 		nbinsx,xmin,xmax,nbinsy,ymin,ymax*1e2),
-	   "!pds_noise && !isBeamTrigger && inBeamWindow && !(pds_peak<7)"+run_cut, "colz");
+	   "pds_flag && !isBeamTrigger && inBeamWindow"+run_cut, "colz");
   c1->DrawClone();
   c1->cd();
   ch->Draw(Form("pds_peak:pds_time-rf_time>>h_peak(%d,%f,%f,%d,%f,%f)",
 		nbinsx,xmin,xmax,nbinsy,ymin,ymax),
-	   "!pds_noise && !isBeamTrigger && inBeamWindow && !(pds_peak<7)"+run_cut, "colz");
+	   "pds_flag && !isBeamTrigger && inBeamWindow"+run_cut, "colz");
   c1->DrawClone();
   c1->cd()->SetLogy();
   ch->Draw(Form("pds_time-rf_time>>h(%d,%f,%f)", nbinsx,xmin,xmax),
-           "!pds_noise && !isBeamTrigger && inBeamWindow && !(pds_peak<7)"+run_cut,
+           "pds_flag && !isBeamTrigger && inBeamWindow"+run_cut,
 	   "goff");
   h->Draw();
 }
