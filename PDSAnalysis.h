@@ -120,7 +120,8 @@ class PDSAnalysis
   Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time);
   Double_t Integral(TH1F* h, Int_t peak_time);
 
-  Double_t QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_t p);
+  Double_t QuadraticYInterpolate(Double_t x[3], Double_t y[3], Double_t p);
+  Double_t QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double_t p);
 
   void ConvertUnits(Int_t subevent);
 

@@ -22,7 +22,7 @@ using namespace TMath;
 const Int_t    PDSAnalysis::kTrigger        = 848;
 const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
-const Double_t PDSAnalysis::kSumThreshold      = 1.00; // pe
+const Double_t PDSAnalysis::kSumThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold_pmt = 20.0; // ADC ticks
@@ -513,11 +513,11 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
   for( Int_t sample = peak_time; sample > peak_time - 50; sample-- ) 
     if( Abs( h->GetBinContent(sample) ) < Abs(peak_10p) ) {
       Double_t dt = h->GetBinWidth(sample)/2;
-      Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt, 
-			   h->GetBinLowEdge(sample+2)+dt };
-      Double_t values[] = { h->GetBinContent(sample), h->GetBinContent(sample+1), 
-			    h->GetBinContent(sample+2) };
-      ev_time = QuadraticInterpolate( values, times, peak_10p );
+      Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt, 
+			   h->GetBinLowEdge(sample+1)+dt };
+      Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample), 
+			    h->GetBinContent(sample+1) };
+      ev_time = QuadraticXInterpolate( values, times, peak_10p );
       break;
     }
   if( ev_time > fNSamples || ev_time < 1 ) {
@@ -545,7 +545,7 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
 			   h->GetBinLowEdge(sample+1)+dt };
       Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
                             h->GetBinContent(sample+1) };
-      rf_time = QuadraticInterpolate( values, times, -kRFThreshold );
+      rf_time = QuadraticXInterpolate( values, times, -kRFThreshold );
       break;
     }
   }
@@ -609,7 +609,7 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
 		       h->GetBinLowEdge(sample+2)+dt };
   Double_t values[] = { h->GetBinContent(sample), h->GetBinContent(sample+1),
 			h->GetBinContent(sample+2) };
-  Double_t x0 = QuadraticInterpolate( values, times, peak_10p );
+  Double_t x0 = QuadraticXInterpolate( values, times, peak_10p );
   Double_t x1 = h->GetBinLowEdge(sample+1)+dt;
   Double_t dx = x1 - x0;
   Double_t y  = (h->GetBinContent(sample+1) + peak_10p)/2;
@@ -627,7 +627,7 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
 	    h->GetBinLowEdge(sample-2)+dt };
   values = { h->GetBinContent(sample), h->GetBinContent(sample-1),
 	     h->GetBinContent(sample-2) };
-  x1 = QuadraticInterpolate( values, times, peak_10p );
+  x1 = QuadraticXInterpolate( values, times, peak_10p );
   x0 = h->GetBinLowEdge(sample-1)+dt;
   dx = x1 - x0;
   y  = (h->GetBinContent(sample-1) + peak_10p)/2;
@@ -636,7 +636,7 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
   return integral;
 }
 
-Double_t PDSAnalysis::QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_t p)
+Double_t PDSAnalysis::QuadraticYInterpolate(Double_t x[3], Double_t y[3], Double_t p)
 {
   // 2nd order Lagrange polynomial interpolation
   // if x-pts are equal, returns highest order result possible
@@ -665,6 +665,44 @@ Double_t PDSAnalysis::QuadraticInterpolate(Double_t x[3], Double_t y[3], Double_
 	  return y[i]*(p-x[j])/(x[i]-x[j]) + y[j]*(p-x[i])/(x[j]-x[i]);
 
   return sum;
+}
+
+Double_t PDSAnalysis::QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double_t p) 
+{
+  Double_t value = 0;
+
+  Double_t A = 0;
+  Double_t B = 0;
+  Double_t C = 0;
+  Double_t D = p;
+
+  for( Int_t i = 0; i < 3; i++ ) {
+    A +=  y[i] * (x[(i+1)%3] - x[(i+2)%3]);
+    B += -y[i] * (Power(x[(i+1)%3],2) - Power(x[(i+2)%3],2));
+    C +=  y[i] * x[(i+1)%3] * x[(i+2)%3] * (x[(i+1)%3] - x[(i+2)%3]);
+    D *=  x[i] - x[(i+1)%3];
+  }
+
+  Double_t divisor = 2 * A;
+  Double_t value1 = -B + Sqrt(Power(B,2) - 4 * A * ( C + D ));
+  Double_t value2 = -B - Sqrt(Power(B,2) - 4 * A * ( C + D ));
+
+  if( divisor == 0 ) // all x-values are equal -> return mean
+    return (x[0]+x[1]+x[2])/3.;
+  else if( 4 * A * ( C + D ) > Power(B,2) ) // some x-values are equal -> return Linear
+    return QuadraticYInterpolate( y, x, p );
+  else {
+    value1 *= 1./divisor;
+    value2 *= 1./divisor;
+  }
+ 
+  // return closest value to x[1]
+  if( Abs(value1 - x[1]) < Abs(value2 - x[1]) )
+    value = value1;
+  else
+    value = value2;
+
+  return value;
 }
 
 void PDSAnalysis::ConvertUnits(Int_t subevent)
