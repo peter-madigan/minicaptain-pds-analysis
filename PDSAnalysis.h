@@ -29,6 +29,7 @@ class PDSAnalysis
   static const Double_t kPMTThreshold;
   static const Double_t kIntegralThreshold_pmt;
   static const Double_t kIntegralThreshold_pds;
+  static const Double_t kWidthThreshold;
 
   static const Int_t kPeakSearchWindow_pre;
   static const Int_t kPeakSearchWindow_post;

@@ -6,7 +6,7 @@ void tof_charge() {
   Int_t nbinsx = (xmax - xmin)/2;
   Int_t nbinsy = 150;
 
-  TString flag_cut = "1"; //pds_flag;
+  TString flag_cut = "1";//"pds_flag";
 
   TString run_cut = " && ( 0"; // low
   run_cut += " || (runno >= 6235 && runno >= 6254)"; // low
@@ -15,7 +15,7 @@ void tof_charge() {
   run_cut += " )";
 
   TString int_cut = "";//" && !(pds_integral < 75) && !(pmt_peak < 5.5)";
-  TString time_cut = "";//"&& !isBeamTrigger"; //" && !(abs(pds_time - 3100) < 300)";
+  TString time_cut = "";//" && !isBeamTrigger"; //" && !(abs(pds_time - 3100) < 300)";
 
   gROOT -> ProcessLine( ".X chainFiles.C" );
   cout << "#Ev: " << pdsEvTree -> GetEntries() << endl;
@@ -34,7 +34,11 @@ void tof_charge() {
   pdsEvTree->Draw(Form("pds_hits:pds_time-rf_time>>h_hits(%d,%f,%f,%d,%f,%f)",
                        nbinsx,xmin,xmax,nbinsy,ymin,ymax*2),
                   flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
-
+  c1->DrawClone();
+  c1->cd();
+  pdsEvTree->Draw(Form("pds_FWHM:pds_time-rf_time>>h_FWHM(%d,%f,%f,%d,%f,%f)",
+                       nbinsx,xmin,xmax,nbinsy,0,100),
+                  flag_cut+" && inBeamWindow && pds_time-rf_time < 0"+run_cut+int_cut+time_cut, "colz");
   // TOF
   c1->DrawClone();
   c1->cd()->SetLogy();
@@ -61,6 +65,12 @@ void tof_charge() {
   c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_peak>>h_shape_hits_peak(%d,%f,%f,%d,%f,%f)",
                        250,2.,100.,250,2.,200.),
+                  flag_cut+run_cut+int_cut+time_cut, "colz");
+
+  c1->DrawClone();
+  c1->cd();
+  pdsEvTree->Draw(Form("pds_FWHM:pds_peak>>h_shape_FWHM_peak(%d,%f,%f,%d,%f,%f)",
+                       250,0.,100.,250,2.,100.),
                   flag_cut+run_cut+int_cut+time_cut, "colz");
 
   // Shapes - cut via timing peak

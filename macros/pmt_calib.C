@@ -27,7 +27,7 @@ void pmt_calib() {
   ch->Draw("pmt_integral>>hNoise","!pmt_flag","e goff");
   ch->Draw("pmt_integral>>hNotNoise","pmt_flag","e goff");
   c_noise -> cd();
-  h_all->SetLineColor(kBlack);
+  h_all->SetLineColor(kGreen+2);
   h_noise->SetLineColor(kBlue+2);
   h_notNoise->SetLineColor(kRed+2);
   h_noise->Draw("e");

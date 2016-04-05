@@ -24,9 +24,10 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
 const Double_t PDSAnalysis::kSumThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 0.25; // pe
-const Double_t PDSAnalysis::kIntegralThreshold_pmt = 20.0; // ADC ticks
-const Double_t PDSAnalysis::kIntegralThreshold_pds = 10.0; // pe ns
+const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
+const Double_t PDSAnalysis::kIntegralThreshold_pmt = 10.0; // ADC ticks
+const Double_t PDSAnalysis::kIntegralThreshold_pds = 5.0; // pe ns
+const Double_t PDSAnalysis::kWidthThreshold    = 7.0/4.0; // ticks
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; //           - 1600ns Ar triplet lifetime
@@ -324,7 +325,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   TH1F* hRF = GetRFMean();
   RemoveADCOffset(hRF);
   rf_time[subevent] = FindRFTime(hRF, Floor(pds_time[subevent]));
-  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999) || isBeamTrigger[subevent];
+  inBeamWindow[subevent]  = !(rf_time[subevent] == -9999);
   isBeamTrigger[subevent] = (subevent == 0);
 
   // Time weighting
@@ -355,6 +356,7 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
   if( pmt_peak[subevent][pmt] == -9999 ) return false;
   if( pmt_integral[subevent][pmt] == -9999 ) return false;
   if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
+  if( pmt_FWHM[subevent][pmt] < kWidthThreshold ) return false;
   return true;
 }
 
@@ -366,6 +368,7 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_
   if( pds_peak[subevent] == -9999 ) return false;
   if( pds_integral[subevent] == -9999 ) return false;
   if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
+  if( pds_FWHM[subevent] < kWidthThreshold ) return false;
   return true;
 }
 
@@ -525,7 +528,7 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
   
   // Interpolates the 10%-peak time (maximum half width at base = 200ns)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
-  for( Int_t sample = peak_time; sample > peak_time - 50; sample-- ) 
+  for( Int_t sample = peak_time-1; sample > peak_time - 50; sample-- ) 
     if( Abs( h->GetBinContent(sample) ) < Abs(peak_10p) 
 	|| h->GetBinContent(sample) * h->GetBinContent(sample+1) < 0) {
       Double_t dt = h->GetBinWidth(sample)/2;
@@ -536,11 +539,10 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
       ev_time = QuadraticXInterpolate( values, times, peak_10p );
       break;
     }
-  if( ev_time > fNSamples || ev_time < 1 ) {
+  if( ev_time > peak_time || ev_time < peak_time-50 )
     if( ev_time != -9999 )
-      std::cout << "ERROR: Event time is " << ev_time << "!" << std::endl;
-    return -9999;
-  } else
+      std::cout << "ERROR: Event time is " << ev_time*4 << "ns!" << std::endl;
+  
     return ev_time;
 }
 
@@ -642,7 +644,8 @@ Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
   // Integrates all peaks
   Double_t integral = 0;
   if( peak_time[0] == -9999 ) return -9999;
-  integral = h->Integral(peak_time[0]-kPeakSearchWindow_pre,peak_time[0]+kPeakSearchWindow_post);
+  for( UInt_t peak = 0; peak < peak_time.size(); peak++ )
+    integral += Integral(h, peak_time[peak]);
   return integral;
 }
 
