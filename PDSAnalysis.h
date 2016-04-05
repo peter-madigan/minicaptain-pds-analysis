@@ -67,6 +67,7 @@ class PDSAnalysis
   Int_t    pds_evno[kMaxNEvents];
   Double_t pds_time[kMaxNEvents];
   Double_t pds_peak[kMaxNEvents];
+  Double_t pds_FWHM[kMaxNEvents];
   Double_t pds_hits[kMaxNEvents];
   Double_t pds_integral[kMaxNEvents];
   Double_t pds_offset[kMaxNEvents];
@@ -74,6 +75,7 @@ class PDSAnalysis
 
   Double_t pmt_time[kMaxNEvents][kNPMTs];
   Double_t pmt_peak[kMaxNEvents][kNPMTs];
+  Double_t pmt_FWHM[kMaxNEvents][kNPMTs];
   Double_t pmt_hits[kMaxNEvents][kNPMTs];
   Double_t pmt_integral[kMaxNEvents][kNPMTs];
   Double_t pmt_dtime[kMaxNEvents][kNPMTs][kNPMTs];
@@ -115,6 +117,7 @@ class PDSAnalysis
   std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
   Double_t FindEvTime(TH1F* h, Int_t peak_time);
   Double_t FindRFTime(TH1F* h, Int_t ev_time);
+  Double_t FWHM(TH1F* h, Int_t peak_time);
   Double_t SumHits(TH1F* h, std::vector<Int_t> peak_time);
   Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time);
   Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time);

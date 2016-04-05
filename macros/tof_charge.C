@@ -6,6 +6,8 @@ void tof_charge() {
   Int_t nbinsx = (xmax - xmin)/2;
   Int_t nbinsy = 150;
 
+  TString flag_cut = "1"; //pds_flag;
+
   TString run_cut = " && ( 0"; // low
   run_cut += " || (runno >= 6235 && runno >= 6254)"; // low
   run_cut += " || (runno >= 6139 && runno <= 6234)"; // med1
@@ -21,23 +23,23 @@ void tof_charge() {
   // TOF vs pe/charge
   pdsEvTree->Draw(Form("pds_integral:pds_time-rf_time>>h_integral(%d,%f,%f,%d,%f,%f)",
 		       nbinsx,xmin,xmax,nbinsy,ymin,ymax*1e2),
-		  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+		  flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
   c1->DrawClone();
   c1->cd();
   pdsEvTree->Draw(Form("pds_peak:pds_time-rf_time>>h_peak(%d,%f,%f,%d,%f,%f)",
 		       nbinsx,xmin,xmax,nbinsy,ymin,ymax),
-		  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+		  flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
   c1->DrawClone();
   c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_time-rf_time>>h_hits(%d,%f,%f,%d,%f,%f)",
                        nbinsx,xmin,xmax,nbinsy,ymin,ymax*2),
-                  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+                  flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
 
   // TOF
   c1->DrawClone();
   c1->cd()->SetLogy();
   pdsEvTree->Draw(Form("pds_time-rf_time>>h(%d,%f,%f)", nbinsx,xmin,xmax),
-		  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut,
+		  flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut,
 		  "goff e");
   h->Draw();
 
@@ -46,34 +48,34 @@ void tof_charge() {
   c1->cd()->SetLogy(0);
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape_peak_int(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,100.),
-                  "pds_flag"+run_cut+int_cut+time_cut, "colz");
+                  flag_cut+run_cut+int_cut+time_cut, "colz");
   c1->cd()->SetLogz();
   
   c1->DrawClone();
   c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_integral>>h_shape_hits_int(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,200.),
-                  "pds_flag"+run_cut+int_cut+time_cut, "colz");
+                  flag_cut+run_cut+int_cut+time_cut, "colz");
 
   c1->DrawClone();
   c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_peak>>h_shape_hits_peak(%d,%f,%f,%d,%f,%f)",
                        250,2.,100.,250,2.,200.),
-                  "pds_flag"+run_cut+int_cut+time_cut, "colz");
+                  flag_cut+run_cut+int_cut+time_cut, "colz");
 
   // Shapes - cut via timing peak
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape_gamma(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,100.),
-                  "(pds_time-rf_time < -680 && pds_time-rf_time > -760) && pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz goff");
+                  "(pds_time-rf_time < -680 && pds_time-rf_time > -760) && "+flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut, "colz goff");
 
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape_neutron(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,100.),
-                  "(pds_time-rf_time > -680 && pds_time-rf_time < -500) && pds_flag && inBeamWindo\
+                  "(pds_time-rf_time > -680 && pds_time-rf_time < -500) && "+flag_cut+" && inBeamWindo\
 w"+run_cut+int_cut+time_cut, "colz goff");
   
 
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape_skyrmion(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,100.),
-                  "(pds_time-rf_time < -120 && pds_time-rf_time > -180) && pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz goff");
+                  "(pds_time-rf_time < -120 && pds_time-rf_time > -180) && "+flag_cut+" && inBeamWindow"+run_cut+int_cut+time_cut, "colz goff");
 
 }

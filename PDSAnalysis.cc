@@ -139,6 +139,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   tree->Branch("pds_evno", pds_evno, "pds_evno[pds_nevent]/I");
   tree->Branch("pds_time", pds_time, "pds_time[pds_nevent]/D");
   tree->Branch("pds_peak", pds_peak, "pds_peak[pds_nevent]/D");
+  tree->Branch("pds_FWHM", pds_FWHM, "pds_FWHM[pds_nevent]/D");
   tree->Branch("pds_hits", pds_hits, "pds_hits[pds_nevent]/D");
   tree->Branch("pds_integral", pds_integral, "pds_integral[pds_nevent]/D");
   tree->Branch("pds_offset",   pds_offset,   "pds_offset[pds_nevent]/D");
@@ -146,6 +147,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
 
   tree->Branch("pmt_time", pmt_time, "pmt_time[pds_nevent][15]/D");
   tree->Branch("pmt_peak", pmt_peak, "pmt_peak[pds_nevent][15]/D");
+  tree->Branch("pmt_FWHM", pmt_FWHM, "pmt_FWHM[pds_nevent][15]/D");
   tree->Branch("pmt_hits", pmt_hits, "pmt_hits[pds_nevent][15]/D");
   tree->Branch("pmt_integral", pmt_integral, "pmt_integral[pds_nevent][15]/D");
   tree->Branch("pmt_dtime",    pmt_dtime,    "pmt_dtime[pds_nevent][15][15]/D");
@@ -270,6 +272,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
   if( peak_time[0] != -9999 ) {
     pmt_peak[subevent][pmt] = hPMT->GetBinContent(peak_time[0]);
+    pmt_FWHM[subevent][pmt] = FWHM(hPMT, peak_time[0]);
     pmt_hits[subevent][pmt] = SumHits(hPMT, peak_time);
     pmt_time[subevent][pmt] = FindEvTime(hPMT, peak_time[0]);
     if( fCalibration )
@@ -278,6 +281,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
       pmt_integral[subevent][pmt] = NegativeIntegral(hPMT, peak_time);
   } else {
     pmt_peak[subevent][pmt] = -9999;
+    pmt_FWHM[subevent][pmt] = -9999;
     pmt_hits[subevent][pmt] = -9999;
     pmt_time[subevent][pmt] = -9999; 
     pmt_integral[subevent][pmt] = -9999;
@@ -298,6 +302,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
   if( peak_time[0] != -9999 ) {
     pds_peak[subevent] = hPMT->GetBinContent(peak_time[0]);
+    pds_FWHM[subevent] = FWHM(hPMT, peak_time[0]);
     pds_hits[subevent] = SumHits(hPMT, peak_time);
     pds_time[subevent] = FindEvTime(hPMT, peak_time[0]);
     if( fCalibration )
@@ -306,6 +311,8 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
       pds_integral[subevent] = NegativeIntegral(hPMT, peak_time);
   } else {
     pds_peak[subevent] = -9999;
+    pds_FWHM[subevent] = -9999;
+    pds_hits[subevent] = -9999;
     pds_time[subevent] = -9999;
     pds_integral[subevent] = -9999;
   }
@@ -343,6 +350,8 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
 Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
 {
   if( pmt_time[subevent][pmt] == -9999 ) return false;
+  if( pmt_FWHM[subevent][pmt] == -9999 ) return false;
+  if( pmt_hits[subevent][pmt] == -9999 ) return false;
   if( pmt_peak[subevent][pmt] == -9999 ) return false;
   if( pmt_integral[subevent][pmt] == -9999 ) return false;
   if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
@@ -352,6 +361,8 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
 Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time) 
 {
   if( pds_time[subevent] == -9999 ) return false;
+  if( pds_FWHM[subevent] == -9999 ) return false;
+  if( pds_hits[subevent] == -9999 ) return false;
   if( pds_peak[subevent] == -9999 ) return false;
   if( pds_integral[subevent] == -9999 ) return false;
   if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
@@ -466,7 +477,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   else if( pmt < 0 )
     threshold = -kSumThreshold;
   else
-    threshold = -kPMTThreshold / kADC_to_pe[pmt];
+    threshold = kPMTThreshold / kADC_to_pe[pmt];
 
   // Find global minimum
   std::vector<Int_t> peak_time(1,-9999);
@@ -484,13 +495,17 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     Double_t local_peak_time = peak_time[0];
     Bool_t ascending = true;
     Bool_t descending = false;
-    for( Int_t sample = peak_time[0]; sample < peak_time[0] + kPeakSearchWindow_post; sample++ )
-      if( Abs( h->GetBinContent(sample) ) > Abs(threshold) && descending ) {
+    for( Int_t sample = peak_time[0]+1; sample < peak_time[0] + kPeakSearchWindow_post; sample++ )
+      if( (Abs( h->GetBinContent(sample) ) > Abs(threshold)
+	   || h->GetBinContent(sample-1) * h->GetBinContent(sample) < 0) 
+	  && descending ) {
 	// Crossed threshold -> begin tracking local peak
 	ascending = true;
 	descending = false;
 	local_peak_time = sample;
-      } else if( Abs( h->GetBinContent(sample) ) < Abs(threshold) && ascending ) { 
+      } else if( (Abs( h->GetBinContent(sample) ) < Abs(threshold)
+		  || h->GetBinContent(sample-1) * h->GetBinContent(sample) < 0)
+		 && ascending ) { 
 	// Crossed threshold -> stop tracking local peak and store
 	ascending = false;
 	descending = true;
@@ -511,7 +526,8 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
   // Interpolates the 10%-peak time (maximum half width at base = 200ns)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
   for( Int_t sample = peak_time; sample > peak_time - 50; sample-- ) 
-    if( Abs( h->GetBinContent(sample) ) < Abs(peak_10p) ) {
+    if( Abs( h->GetBinContent(sample) ) < Abs(peak_10p) 
+	|| h->GetBinContent(sample) * h->GetBinContent(sample+1) < 0) {
       Double_t dt = h->GetBinWidth(sample)/2;
       Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt, 
 			   h->GetBinLowEdge(sample+1)+dt };
@@ -558,6 +574,45 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
   return rf_time;
 }
 
+Double_t PDSAnalysis::FWHM(TH1F* h, Int_t peak_time)
+{
+  Double_t HM = h->GetBinContent(peak_time) * 0.5;
+  // interpolate first HM
+  Double_t time1 = -9999;
+  for( Int_t sample = peak_time-1; sample > peak_time - 50; sample-- ) {
+    if( Abs(h->GetBinContent(sample)) < Abs(HM) 
+	|| h->GetBinContent(sample) * h->GetBinContent(sample+1) < 0) {
+      Double_t dt = h->GetBinWidth(sample)/2;
+      Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
+                           h->GetBinLowEdge(sample+1)+dt };
+      Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
+                            h->GetBinContent(sample+1) };
+      time1 = QuadraticXInterpolate( values, times, HM );
+      break;
+    }
+  }
+
+  // interpolate second HM
+  Double_t time2 = -9999;
+  for( Int_t sample = peak_time+1; sample < peak_time + 50; sample++ ) {
+    if( Abs(h->GetBinContent(sample)) < Abs(HM) 
+	|| h->GetBinContent(sample) * h->GetBinContent(sample-1) < 0) {
+      Double_t dt = h->GetBinWidth(sample)/2;
+      Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
+                           h->GetBinLowEdge(sample+1)+dt };
+      Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
+                            h->GetBinContent(sample+1) };
+      time2 = QuadraticXInterpolate( values, times, HM );
+      break;
+    }
+  }
+
+  if( time1 == -9999 || time2 == -9999 )
+    return -9999;
+  else
+    return time2 - time1;
+}
+
 Double_t PDSAnalysis::SumHits(TH1F* h, std::vector<Int_t> peak_time)
 {
   if( peak_time[0] == -9999 ) return -9999;
@@ -586,9 +641,8 @@ Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
 {
   // Integrates all peaks
   Double_t integral = 0;
-  if( peak_time[0] == -9999 ) return 0;
-  for( UInt_t peak = 0; peak < peak_time.size(); peak++ )
-    integral += Integral(h, peak_time[peak]);
+  if( peak_time[0] == -9999 ) return -9999;
+  integral = h->Integral(peak_time[0]-kPeakSearchWindow_pre,peak_time[0]+kPeakSearchWindow_post);
   return integral;
 }
 
@@ -598,17 +652,21 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
   Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
   Double_t integral = 0;
   UInt_t sample = peak_time;
+  integral += h->GetBinContent(peak_time);
+  
   // Backwards from peak
-  while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) ) {
+  sample = peak_time - 1;
+  while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) 
+	 && h->GetBinContent(sample+1) * h->GetBinContent(sample) > 0) {
     integral += h->GetBinContent(sample);
     sample--;
   }
   // Interpolate last bin
   Double_t dt = h->GetBinWidth(sample)/2;
-  Double_t times[] = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample+1)+dt,
-		       h->GetBinLowEdge(sample+2)+dt };
-  Double_t values[] = { h->GetBinContent(sample), h->GetBinContent(sample+1),
-			h->GetBinContent(sample+2) };
+  Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
+		       h->GetBinLowEdge(sample+1)+dt };
+  Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
+			h->GetBinContent(sample+1) };
   Double_t x0 = QuadraticXInterpolate( values, times, peak_10p );
   Double_t x1 = h->GetBinLowEdge(sample+1)+dt;
   Double_t dx = x1 - x0;
@@ -617,22 +675,23 @@ Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
   
   // Forwards from peak
   sample = peak_time + 1;
-  while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) ) {
+  while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) 
+	 && h->GetBinContent(sample-1) * h->GetBinContent(sample) > 0) {
     integral += h->GetBinContent(sample);
     sample++;
   }
   // Interpolate last bin   
   dt = h->GetBinWidth(sample)/2;
-  times = { h->GetBinLowEdge(sample)+dt, h->GetBinLowEdge(sample-1)+dt,
-	    h->GetBinLowEdge(sample-2)+dt };
-  values = { h->GetBinContent(sample), h->GetBinContent(sample-1),
-	     h->GetBinContent(sample-2) };
+  times = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
+	    h->GetBinLowEdge(sample+1)+dt };
+  values = { h->GetBinContent(sample-1), h->GetBinContent(sample),
+	     h->GetBinContent(sample+1) };
   x1 = QuadraticXInterpolate( values, times, peak_10p );
   x0 = h->GetBinLowEdge(sample-1)+dt;
   dx = x1 - x0;
   y  = (h->GetBinContent(sample-1) + peak_10p)/2;
   integral += y * dx;
-
+  
   return integral;
 }
 
@@ -709,12 +768,14 @@ void PDSAnalysis::ConvertUnits(Int_t subevent)
 {
   pds_time[subevent] *= kTick_to_ns;
   pds_peak[subevent] *= -1.;
+  pds_FWHM[subevent] *= kTick_to_ns;
   pds_hits[subevent] *= -1.;
   pds_integral[subevent] *= kTick_to_ns * -1.;
   rf_time[subevent] *= kTick_to_ns;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     pmt_time[subevent][pmt] *= kTick_to_ns;
     pmt_peak[subevent][pmt] *= kADC_to_pe[pmt];
+    pmt_FWHM[subevent][pmt] *= kTick_to_ns;
     pmt_hits[subevent][pmt] *= kADC_to_pe[pmt];
     pmt_integral[subevent][pmt] *= kTick_to_ns * kADC_to_pe[pmt];
     for( UInt_t pmt2 = 0; pmt2 < kNPMTs; pmt2++ )
@@ -731,10 +792,10 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
 	    << "RF:" << Form("%.6g",rf_time[subevent] * kTick_to_ns) << "\t"
 	    << "BEAM?:" << inBeamWindow[subevent] << "\n"
-	    << "PMT:  \tTIME: \tPEAK: \tHITS: \tINT:  \tBL:   \tFLAG?:" << "\n"
+	    << "PMT:  \tTIME: \tPEAK: \tFWHM: \tINT:  \tBL:   \tFLAG?:" << "\n"
 	    << "PDS" << "\t" << Form("%.6g",pds_time[subevent] * kTick_to_ns) << "\t"
 	    << Form("%.5g",pds_peak[subevent] * -1.) << "\t"
-	    << Form("%.5g",pds_hits[subevent] * -1.) << "\t"
+	    << Form("%.5g",pds_FWHM[subevent] * kTick_to_ns) << "\t"
 	    << Form("%.5g",pds_integral[subevent] * kTick_to_ns * -1.) << "\t"
 	    << Form("%.5g",pds_offset[subevent]) << "\t"
 	    << pds_flag[subevent] << "\n";
@@ -742,7 +803,7 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
     std::cout << pmt + 1 << "\t"
 	      << Form("%.6g",pmt_time[subevent][pmt] * kTick_to_ns) << "\t"
 	      << Form("%.5g",pmt_peak[subevent][pmt] * kADC_to_pe[pmt]) << "\t"
-	      << Form("%.5g",pmt_hits[subevent][pmt] * kADC_to_pe[pmt]) << "\t"
+	      << Form("%.5g",pmt_FWHM[subevent][pmt] * kTick_to_ns) << "\t"
 	      << Form("%.4g",pmt_integral[subevent][pmt] * kTick_to_ns * kADC_to_pe[pmt]) << "\t"
 	      << Form("%.5g",pmt_offset[subevent][pmt]) << "\t"
 	      << pmt_flag[subevent][pmt] << "\n";
