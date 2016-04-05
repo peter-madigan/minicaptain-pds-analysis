@@ -8,8 +8,8 @@ void tof_charge() {
 
   TString run_cut = " && ( 0"; // low
   run_cut += " || (runno >= 6235 && runno >= 6254)"; // low
-  run_cut += " || (runno >= 6139 && runno <= 6234)"; // med1
-  run_cut += " || (runno >= 6260 && runno <= 6299)"; // med2 
+  //run_cut += " || (runno >= 6139 && runno <= 6234)"; // med1
+  //run_cut += " || (runno >= 6260 && runno <= 6299)"; // med2 
   run_cut += " )";
 
   TString int_cut = " && !(pds_integral < 75) && !(pmt_peak < 5.5)";
@@ -38,7 +38,7 @@ void tof_charge() {
   c1->cd()->SetLogy();
   pdsEvTree->Draw(Form("pds_time-rf_time>>h(%d,%f,%f)", nbinsx,xmin,xmax),
 		  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut,
-		  "goff");
+		  "goff e");
   h->Draw();
 
   // Shapes

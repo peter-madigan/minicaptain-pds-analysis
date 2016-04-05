@@ -480,8 +480,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Find triplet peaks
   if( peak_time[0] != -9999 ) {
     Double_t local_peak_time = peak_time[0];
-    Bool_t ascending = false;
-    Bool_t descending = true;
+    Bool_t ascending = true;
+    Bool_t descending = false;
     for( Int_t sample = peak_time[0]; sample < peak_time[0] + kPeakSearchWindow_post; sample++ )
       if( Abs( h->GetBinContent(sample) ) > Abs(threshold) && descending ) {
 	// Crossed threshold -> begin tracking local peak
@@ -492,7 +492,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
 	// Crossed threshold -> stop tracking local peak and store
 	ascending = false;
 	descending = true;
-	peak_time.push_back(local_peak_time);
+	if( local_peak_time != peak_time[0] )
+	  peak_time.push_back(local_peak_time);
       } else if( ascending && Abs( h->GetBinContent(sample) ) > Abs( h->GetBinContent(local_peak_time) ) ) {
 	// New maximum found above threshold
 	local_peak_time = sample;
