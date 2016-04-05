@@ -12,8 +12,8 @@ void tof_charge() {
   run_cut += " || (runno >= 6260 && runno <= 6299)"; // med2 
   run_cut += " )";
 
-  TString int_cut = " && !(pds_integral < 75) && !(pmt_peak < 5.5)";
-  TString time_cut = "&& !isBeamTrigger"; //" && !(abs(pds_time - 3100) < 300)";
+  TString int_cut = "";//" && !(pds_integral < 75) && !(pmt_peak < 5.5)";
+  TString time_cut = "";//"&& !isBeamTrigger"; //" && !(abs(pds_time - 3100) < 300)";
 
   gROOT -> ProcessLine( ".X chainFiles.C" );
   cout << "#Ev: " << pdsEvTree -> GetEntries() << endl;
