@@ -36,7 +36,7 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
-  kADC_to_pe.push_back(-1./1.000); // #1 Dead pmt
+  kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
   kADC_to_pe.push_back(-1./8.761); // #2
   kADC_to_pe.push_back(-1./8.517); // #3
   kADC_to_pe.push_back(-1./9.614); // #4
@@ -137,12 +137,14 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   tree->Branch("pds_evno", pds_evno, "pds_evno[pds_nevent]/I");
   tree->Branch("pds_time", pds_time, "pds_time[pds_nevent]/D");
   tree->Branch("pds_peak", pds_peak, "pds_peak[pds_nevent]/D");
+  tree->Branch("pds_hits", pds_hits, "pds_hits[pds_nevent]/D");
   tree->Branch("pds_integral", pds_integral, "pds_integral[pds_nevent]/D");
   tree->Branch("pds_offset",   pds_offset,   "pds_offset[pds_nevent]/D");
   tree->Branch("pds_flag", pds_flag, "pds_flag[pds_nevent]/O");
 
   tree->Branch("pmt_time", pmt_time, "pmt_time[pds_nevent][15]/D");
   tree->Branch("pmt_peak", pmt_peak, "pmt_peak[pds_nevent][15]/D");
+  tree->Branch("pmt_hits", pmt_hits, "pmt_hits[pds_nevent][15]/D");
   tree->Branch("pmt_integral", pmt_integral, "pmt_integral[pds_nevent][15]/D");
   tree->Branch("pmt_dtime",    pmt_dtime,    "pmt_dtime[pds_nevent][15][15]/D");
   tree->Branch("pmt_offset",   pmt_offset,   "pmt_offset[pds_nevent][15]/D");
@@ -266,6 +268,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
   if( peak_time[0] != -9999 ) {
     pmt_peak[subevent][pmt] = hPMT->GetBinContent(peak_time[0]);
+    pmt_hits[subevent][pmt] = SumHits(hPMT, peak_time);
     pmt_time[subevent][pmt] = FindEvTime(hPMT, peak_time[0]);
     if( fCalibration )
       pmt_integral[subevent][pmt] = TotalIntegral(hPMT, peak_time);
@@ -273,6 +276,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
       pmt_integral[subevent][pmt] = NegativeIntegral(hPMT, peak_time);
   } else {
     pmt_peak[subevent][pmt] = -9999;
+    pmt_hits[subevent][pmt] = -9999;
     pmt_time[subevent][pmt] = -9999; 
     pmt_integral[subevent][pmt] = -9999;
   }
@@ -292,6 +296,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
   if( peak_time[0] != -9999 ) {
     pds_peak[subevent] = hPMT->GetBinContent(peak_time[0]);
+    pds_hits[subevent] = SumHits(hPMT, peak_time);
     pds_time[subevent] = FindEvTime(hPMT, peak_time[0]);
     if( fCalibration )
       pds_integral[subevent] = TotalIntegral(hPMT, peak_time);
@@ -476,7 +481,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   if( peak_time[0] != -9999 ) {
     Double_t local_peak_time = peak_time[0];
     Bool_t ascending = false;
-    Bool_t descending = false;
+    Bool_t descending = true;
     for( Int_t sample = peak_time[0]; sample < peak_time[0] + kPeakSearchWindow_post; sample++ )
       if( Abs( h->GetBinContent(sample) ) > Abs(threshold) && descending ) {
 	// Crossed threshold -> begin tracking local peak
@@ -548,6 +553,18 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
       return -9999;
     }
   return rf_time;
+}
+
+Double_t PDSAnalysis::SumHits(TH1F* h, std::vector<Int_t> peak_time)
+{
+  if( peak_time[0] == -9999 ) return -9999;
+
+  Double_t sum = 0;
+  for( Int_t peak = 0; peak < peak_time.size(); peak++ ) {
+    if( h->GetBinContent(peak_time[peak]) < 0 )
+      sum += h->GetBinContent(peak_time[peak]);
+  }
+  return sum;
 }
 
 Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time) 
@@ -651,11 +668,13 @@ void PDSAnalysis::ConvertUnits(Int_t subevent)
 {
   pds_time[subevent] *= kTick_to_ns;
   pds_peak[subevent] *= -1.;
+  pds_hits[subevent] *= -1.;
   pds_integral[subevent] *= kTick_to_ns * -1.;
   rf_time[subevent] *= kTick_to_ns;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     pmt_time[subevent][pmt] *= kTick_to_ns;
     pmt_peak[subevent][pmt] *= kADC_to_pe[pmt];
+    pmt_hits[subevent][pmt] *= kADC_to_pe[pmt];
     pmt_integral[subevent][pmt] *= kTick_to_ns * kADC_to_pe[pmt];
     for( UInt_t pmt2 = 0; pmt2 < kNPMTs; pmt2++ )
       pmt_dtime[subevent][pmt][pmt2] *= kTick_to_ns;
@@ -669,19 +688,21 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 	    << "Sub Ev#" << subevent << "\t"
 	    << "PDS Ev#" << pds_evno[subevent] << "\n"
 	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
-	    << "RF:" << Form("%.6g",rf_time[subevent]) << "\t"
+	    << "RF:" << Form("%.6g",rf_time[subevent] * kTick_to_ns) << "\t"
 	    << "BEAM?:" << inBeamWindow[subevent] << "\n"
-	    << "PMT:  \tTIME: \tPEAK: \tINT:  \tBL:   \tFLAG?:" << "\n"
-	    << "PDS" << "\t" << Form("%.6g",pds_time[subevent]) << "\t"
-	    << Form("%.5g",pds_peak[subevent]) << "\t"
-	    << Form("%.5g",pds_integral[subevent]) << "\t"
+	    << "PMT:  \tTIME: \tPEAK: \tHITS: \tINT:  \tBL:   \tFLAG?:" << "\n"
+	    << "PDS" << "\t" << Form("%.6g",pds_time[subevent] * kTick_to_ns) << "\t"
+	    << Form("%.5g",pds_peak[subevent] * -1.) << "\t"
+	    << Form("%.5g",pds_hits[subevent] * -1.) << "\t"
+	    << Form("%.5g",pds_integral[subevent] * kTick_to_ns * -1.) << "\t"
 	    << Form("%.5g",pds_offset[subevent]) << "\t"
 	    << pds_flag[subevent] << "\n";
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
     std::cout << pmt + 1 << "\t"
-	      << Form("%.6g",pmt_time[subevent][pmt]) << "\t"
-	      << Form("%.5g",pmt_peak[subevent][pmt]) << "\t"
-	      << Form("%.4g",pmt_integral[subevent][pmt]) << "\t"
+	      << Form("%.6g",pmt_time[subevent][pmt] * kTick_to_ns) << "\t"
+	      << Form("%.5g",pmt_peak[subevent][pmt] * kADC_to_pe[pmt]) << "\t"
+	      << Form("%.5g",pmt_hits[subevent][pmt] * kADC_to_pe[pmt]) << "\t"
+	      << Form("%.4g",pmt_integral[subevent][pmt] * kTick_to_ns * kADC_to_pe[pmt]) << "\t"
 	      << Form("%.5g",pmt_offset[subevent][pmt]) << "\t"
 	      << pmt_flag[subevent][pmt] << "\n";
   std::cout << std::endl;
@@ -717,7 +738,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   else
     hSum->SetLineColor(kBlue + 2);
   hSum->Draw("l");
-  
+
   // Draw PDS lines
   TLine* l_trig = new TLine(kTrigger, ymin, kTrigger, ymax);
   pmt_lines->Add(l_trig);

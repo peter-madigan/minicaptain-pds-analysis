@@ -20,9 +20,9 @@ void pmt_calib() {
   ch->Add("calib/pdsTree9995/pdsEvTree*");
   ch->Add("calib/pdsTree9996/pdsEvTree*");
 
-  TH1F* h_all = new TH1F("hAll",";total integral;count",1500,-1000,500);
-  TH1F* h_noise = new TH1F("hNoise",";total integral;count",1500,-1000,500);
-  TH1F* h_notNoise = new TH1F("hNotNoise",";total integral;count",1000,-500,500);
+  TH1F* h_all = new TH1F("hAll",";total integral;count",1500,-10000,5000);
+  TH1F* h_noise = new TH1F("hNoise",";total integral;count",1500,-10000,5000);
+  TH1F* h_notNoise = new TH1F("hNotNoise",";total integral;count",15000,-10000,5000);
   ch->Draw("pmt_integral>>hAll","","e goff");
   ch->Draw("pmt_integral>>hNoise","!pmt_flag","e goff");
   ch->Draw("pmt_integral>>hNotNoise","pmt_flag","e goff");
