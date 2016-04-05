@@ -46,20 +46,20 @@ void tof_charge() {
   c1->cd()->SetLogy(0);
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape_peak_int(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,100.),
-                  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+                  "pds_flag"+run_cut+int_cut+time_cut, "colz");
   c1->cd()->SetLogz();
   
   c1->DrawClone();
   c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_integral>>h_shape_hits_int(%d,%f,%f,%d,%f,%f)",
                        250,20.,10000.,250,2.,200.),
-                  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+                  "pds_flag"+run_cut+int_cut+time_cut, "colz");
 
   c1->DrawClone();
   c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_peak>>h_shape_hits_peak(%d,%f,%f,%d,%f,%f)",
                        250,2.,100.,250,2.,200.),
-                  "pds_flag && inBeamWindow"+run_cut+int_cut+time_cut, "colz");
+                  "pds_flag"+run_cut+int_cut+time_cut, "colz");
 
   // Shapes - cut via timing peak
   pdsEvTree->Draw(Form("pds_peak:pds_integral>>h_shape_gamma(%d,%f,%f,%d,%f,%f)",
