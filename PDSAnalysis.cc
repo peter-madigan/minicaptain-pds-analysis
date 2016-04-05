@@ -484,7 +484,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
 
   // Find global minimum
   std::vector<Int_t> peak_time(1,-9999);
-  for( UInt_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post; sample++ ) {
+  for( UInt_t sample = kTrigger - kPeakSearchWindow_pre; sample < kTrigger + kPeakSearchWindow_post && sample < fNSamples; sample++ ) {
     if( h->GetBinContent(sample) < threshold ) {
       if( peak_time[0] == -9999 )
 	peak_time[0] = sample;
@@ -498,7 +498,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     Double_t local_peak_time = peak_time[0];
     Bool_t ascending = true;
     Bool_t descending = false;
-    for( Int_t sample = peak_time[0]+1; sample < peak_time[0] + kPeakSearchWindow_post; sample++ )
+    for( Int_t sample = peak_time[0]+1; sample < peak_time[0] + kPeakSearchWindow_post && sample < fNSamples; sample++ )
       if( (Abs( h->GetBinContent(sample) ) > Abs(threshold)
 	   || h->GetBinContent(sample-1) * h->GetBinContent(sample) < 0) 
 	  && descending ) {
@@ -916,6 +916,9 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   
   // Draw RF lines
   if( inBeamWindow[subevent] ) {
+    xmin = pds_time[subevent] - kBeamSearchWindow_pre;
+    xmax = pds_time[subevent] + kBeamSearchWindow_post;
+
     TLine* l_thresh = new TLine(xmin, -kRFThreshold/30-25, xmax, -kRFThreshold/30-25);
     pmt_lines->Add(l_thresh);
     l_thresh->SetLineColor(kRed + 2);
@@ -934,6 +937,12 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     TH1F* h = GetPMT(pmt);
     pmt_hists->Add(h);
     RemoveADCOffset(h,pmt*10);
+    xmin = kTrigger - kPeakSearchWindow_pre;
+    if( pmt_time[subevent][pmt] > 0 )
+      xmax = pmt_time[subevent][pmt] + kPeakSearchWindow_post;
+    else
+      xmax = kTrigger + kPeakSearchWindow_post;
+
     h->GetXaxis()->SetRangeUser(xmin,xmax);
     h->GetYaxis()->SetRangeUser(ymin,ymax);
     if( !pmt_flag[subevent][pmt] )
