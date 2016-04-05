@@ -12,6 +12,8 @@
 #include <THStack.h>
 #include <TMath.h>
 #include <TLine.h>
+#include <TGraph.h>
+#include <TStyle.h>
 
 #include "PDSAnalysis.h"
 
@@ -20,7 +22,7 @@ using namespace TMath;
 const Int_t    PDSAnalysis::kTrigger        = 848;
 const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
-const Double_t PDSAnalysis::kSumThreshold      = 0.50; // pe
+const Double_t PDSAnalysis::kSumThreshold      = 1.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold_pmt = 20.0; // ADC ticks
@@ -711,6 +713,7 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 
 void PDSAnalysis::DrawEvent(Int_t subevent)
 {
+  gStyle->SetOptStat(0);
   fCanvas->cd();
   //fCanvas->SetGridx();
   //fCanvas->SetGridy();
@@ -729,6 +732,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
+  hSum->Scale(2.);
   pmt_hists->Add(hSum);
   RemoveADCOffset(hSum,-50);
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
@@ -748,8 +752,31 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   l_trig->Draw("same");
 
   if( pds_flag[subevent] ) {
-    TLine* l_threshold1 = new TLine(xmin, kSumThreshold-50, xmax, kSumThreshold-50);
-    TLine* l_threshold2 = new TLine(xmin, -kSumThreshold-50, xmax, -kSumThreshold-50);
+    RemoveADCOffset(hSum);
+    hSum->Scale(.5);
+    std::vector<Int_t> peak_time = FindPeaks(hSum,-1);
+    hSum->Scale(2);
+    RemoveADCOffset(hSum,-50);
+    hSum->GetXaxis()->SetRangeUser(xmin,xmax);
+    hSum->GetYaxis()->SetRangeUser(ymin,ymax);
+
+    Int_t n = peak_time.size();
+    Double_t t[n];
+    Double_t y[n];
+    for( int i = 0; i < n; i++ ) {
+      Double_t dt = hSum->GetBinWidth(peak_time[i])/2;
+      t[i] = hSum->GetBinLowEdge(peak_time[i]) + dt;
+      y[i] = hSum->GetBinContent(peak_time[i]);
+    }
+    TGraph* g_peak = new TGraph(n,t,y);
+    pmt_hists->Add(g_peak);
+    g_peak->SetMarkerStyle(24);
+    g_peak->SetMarkerColor(kRed);
+    g_peak->SetMarkerSize(0.7);
+    g_peak->Draw("same p");
+
+    TLine* l_threshold1 = new TLine(xmin, kSumThreshold*2-50, xmax, kSumThreshold*2-50);
+    TLine* l_threshold2 = new TLine(xmin, -kSumThreshold*2-50, xmax, -kSumThreshold*2-50);
     pmt_lines->Add(l_threshold1);
     pmt_lines->Add(l_threshold2);
     l_threshold1->SetLineColor(kBlue + 2);
@@ -765,7 +792,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     l_time->SetLineStyle(2);
     l_time->Draw("same");
 
-    TLine* l_peak = new TLine(xmin, pds_peak[subevent]-50, xmax, pds_peak[subevent]-50);
+    TLine* l_peak = new TLine(xmin, pds_peak[subevent]*2-50, xmax, pds_peak[subevent]*2-50);
     pmt_lines->Add(l_peak);
     l_peak->SetLineColor(kViolet + 2);
     l_peak->SetLineStyle(2);
