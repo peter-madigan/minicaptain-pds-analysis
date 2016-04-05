@@ -387,7 +387,6 @@ TH1F* PDSAnalysis::GetPMT(Int_t pmt)
   TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
   for( UInt_t sample = 0; sample < fNSamples; sample++ )
     h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
-
   return h;
 }
 
@@ -406,8 +405,9 @@ TH1F* PDSAnalysis::GetPMTSum()
       board = 1;
     UInt_t channel = pmt % 5;
     
-    for( UInt_t sample = 0; sample < fNSamples; sample++ )
+    for( UInt_t sample = 0; sample < fNSamples; sample++ ) {
       h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
+    }
   }
 
   return h;
