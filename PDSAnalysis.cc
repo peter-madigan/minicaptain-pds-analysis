@@ -30,7 +30,7 @@ const Double_t PDSAnalysis::kIntegralThreshold_pds = 5.0; // pe ns
 const Double_t PDSAnalysis::kWidthThreshold    = 7.0/4.0; // ticks
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
-const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; //           - 1600ns Ar triplet lifetime
+const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400*3; //           - 1600ns Ar triplet lifetime
 const Int_t    PDSAnalysis::kBeamSearchWindow_post = 400;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 0;
 

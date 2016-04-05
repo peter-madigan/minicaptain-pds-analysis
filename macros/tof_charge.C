@@ -6,7 +6,7 @@ void tof_charge() {
   Int_t nbinsx = (xmax - xmin)/2;
   Int_t nbinsy = 150;
 
-  TString flag_cut = "1";//"pds_flag";
+  TString flag_cut = "pds_flag";
 
   TString run_cut = " && ( 0"; // low
   run_cut += " || (runno >= 6235 && runno >= 6254)"; // low
@@ -57,12 +57,6 @@ void tof_charge() {
   
   c1->DrawClone();
   c1->cd();
-  pdsEvTree->Draw(Form("pds_hits:pds_integral>>h_shape_hits_int(%d,%f,%f,%d,%f,%f)",
-                       250,20.,10000.,250,2.,200.),
-                  flag_cut+run_cut+int_cut+time_cut, "colz");
-
-  c1->DrawClone();
-  c1->cd();
   pdsEvTree->Draw(Form("pds_hits:pds_peak>>h_shape_hits_peak(%d,%f,%f,%d,%f,%f)",
                        250,2.,100.,250,2.,200.),
                   flag_cut+run_cut+int_cut+time_cut, "colz");
@@ -71,6 +65,12 @@ void tof_charge() {
   c1->cd();
   pdsEvTree->Draw(Form("pds_FWHM:pds_peak>>h_shape_FWHM_peak(%d,%f,%f,%d,%f,%f)",
                        250,0.,100.,250,2.,100.),
+                  flag_cut+run_cut+int_cut+time_cut, "colz");
+
+  c1->DrawClone();
+  c1->cd();
+  pdsEvTree->Draw(Form("pds_peak:pds_peak/pds_integral>>h_shape_peak_r(%d,%f,%f,%d,%f,%f)",
+                       250,0.,0.06,250,2.,100.),
                   flag_cut+run_cut+int_cut+time_cut, "colz");
 
   // Shapes - cut via timing peak
