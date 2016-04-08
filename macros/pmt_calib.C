@@ -20,12 +20,12 @@ void pmt_calib() {
   ch->Add("calib/pdsTree9995/pdsEvTree*");
   ch->Add("calib/pdsTree9996/pdsEvTree*");
 
-  TH1F* h_all = new TH1F("hAll",";total integral;count",1500,-10000,5000);
-  TH1F* h_noise = new TH1F("hNoise",";total integral;count",1500,-10000,5000);
-  TH1F* h_notNoise = new TH1F("hNotNoise",";total integral;count",15000,-10000,5000);
-  ch->Draw("pmt_integral>>hAll","","e goff");
-  ch->Draw("pmt_integral>>hNoise","!pmt_flag","e goff");
-  ch->Draw("pmt_integral>>hNotNoise","pmt_flag","e goff");
+  TH1F* h_all = new TH1F("hAll",";total integral;count",250,-1,1);
+  TH1F* h_noise = new TH1F("hNoise",";total integral;count",250,-1,1);
+  TH1F* h_notNoise = new TH1F("hNotNoise",";total integral;count",250,-1,1);
+  ch->Draw("pmt_ratio>>hAll","Iteration$<15*pmt_hits","e goff");
+  ch->Draw("pmt_ratio>>hNoise","!pmt_flag && Iteration$<15*pmt_hits","e goff");
+  ch->Draw("pmt_ratio>>hNotNoise","pmt_flag && Iteration$<15*pmt_hits","e goff");
   c_noise -> cd();
   h_all->SetLineColor(kGreen+2);
   h_noise->SetLineColor(kBlue+2);
@@ -42,8 +42,8 @@ void pmt_calib() {
 
     TH1F* h_peak = new TH1F(name_peak,name_peak+";height;count",15,-15,0);
     TH1F* h_bl = new TH1F(name_bl,name_bl+";baseline;count",40,3880,3920);
-    ch->Draw("pmt_peak>>"+name_peak,Form("Iteration$%%15==%d && pmt_flag",pmt),"e goff");
-    ch->Draw("pmt_offset>>"+name_bl,Form("Iteration$%%15==%d",pmt),"e goff");
+    ch->Draw("pmt_peak>>"+name_peak,Form("Iteration$%%15==%d && pmt_flag && Iteration$<15*pmt_hits",pmt),"e goff");
+    ch->Draw("pmt_offset>>"+name_bl,Form("Iteration$%%15==%d && Iteration$<15*pmt_hits",pmt),"e goff");
 
     // peak fit
     Double_t low_edge = -10;
@@ -70,7 +70,7 @@ void pmt_calib() {
   }
 
   // Occupancy
-  Bool_t pmt_flag[1000][15];
+  Bool_t pmt_flag[15];
   UInt_t  nevent;
   ch->SetBranchAddress("pmt_flag", pmt_flag);
   ch->SetBranchAddress("pds_nevent", &nevent);
@@ -78,14 +78,12 @@ void pmt_calib() {
   TH1F* h_occu = new TH1F("h_occu","occupancy;# of pmts;counts",15,0,15);
   for( int i = 0; i < ch->GetEntries(); i++ ) {
     ch->GetEntry(i);
-
-    for( int j = 0; j < nevent; j++ ) {
-      Int_t sum = 0;
-      for( int pmt = 0; pmt < 15; pmt++ ) {
-	sum += pmt_flag[j][pmt];
-      }
-      h_occu -> Fill(sum);
+    
+    Int_t sum = 0;
+    for( int pmt = 0; pmt < 15; pmt++ ) {
+      sum += pmt_flag[pmt];
     }
+    h_occu -> Fill(sum); 
   }
   c_peak -> cd(16);
   h_occu -> Draw("e");

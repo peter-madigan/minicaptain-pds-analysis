@@ -1,4 +1,4 @@
-Double_t calib_time = -700e-9; // 2016-4-4 pmadigan
+Double_t calib_time = -675e-9; // 2016-4-4 pmadigan
 Double_t time_err   = 4e-9; // sec -- overestimate
 Double_t tof_length = 23.18; // m -- 2016-3 pmadigan
 Double_t length_err = 0.01; // m 
@@ -37,7 +37,7 @@ void tof_to_spectrum() {
   Double_t xmax = 2.5e3;
   Int_t nbinsy = 200;
   Double_t ymin= 0;
-  Double_t ymax= 100;
+  Double_t ymax= 1e5;
 
   Double_t energy;
   Double_t energy_err;

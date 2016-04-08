@@ -15,6 +15,7 @@ class PDSAnalysis
 {
  public:
   // Analysis constants
+  static const UInt_t kMaxNHits    = 1000;
   static const UInt_t kMaxNEvents  = 100;
   static const size_t kMaxNSamples = 2048; 
   static const size_t kNBoards     = 3;
@@ -66,31 +67,31 @@ class PDSAnalysis
   UShort_t gps_yr, gps_d;
   UInt_t   gps_s,  gps_ns;
   
-  Int_t    pds_evno[kMaxNEvents];
-  Double_t pds_time[kMaxNEvents];
-  Double_t pds_peak[kMaxNEvents];
-  Double_t pds_ratio[kMaxNEvents];
-  Double_t pds_FWHM[kMaxNEvents];
-  Double_t pds_hits[kMaxNEvents];
-  Double_t pds_integral[kMaxNEvents];
-  Double_t pds_offset[kMaxNEvents];
-  Bool_t   pds_flag[kMaxNEvents];
+  Int_t    pds_evno;
+  Int_t    pds_hits;
+  Double_t pds_ratio;
+  Double_t pds_time[kMaxNHits];
+  Double_t pds_peak[kMaxNHits];
+  Double_t pds_FWHM[kMaxNHits];
+  Double_t pds_integral[kMaxNHits];
+  Double_t pds_offset;
+  Bool_t   pds_flag;
 
-  Double_t pmt_time[kMaxNEvents][kNPMTs];
-  Double_t pmt_peak[kMaxNEvents][kNPMTs];
-  Double_t pmt_ratio[kMaxNEvents][kNPMTs];
-  Double_t pmt_FWHM[kMaxNEvents][kNPMTs];
-  Double_t pmt_hits[kMaxNEvents][kNPMTs];
-  Double_t pmt_integral[kMaxNEvents][kNPMTs];
-  Double_t pmt_dtime[kMaxNEvents][kNPMTs][kNPMTs];
-  Double_t pmt_offset[kMaxNEvents][kNPMTs];
-  Bool_t   pmt_flag[kMaxNEvents][kNPMTs];
+  Int_t    pmt_hits[kNPMTs];
+  Double_t pmt_ratio[kNPMTs];
+  Double_t pmt_time[kNPMTs][kMaxNHits];
+  Double_t pmt_peak[kNPMTs][kMaxNHits];
+  Double_t pmt_FWHM[kNPMTs][kMaxNHits];
+  Double_t pmt_integral[kNPMTs][kMaxNHits];
+  Double_t pmt_dtime[kNPMTs][kNPMTs];
+  Double_t pmt_offset[kNPMTs];
+  Bool_t   pmt_flag[kNPMTs];
 
-  Double_t rf_time[kMaxNEvents];
-  Bool_t   inBeamWindow[kMaxNEvents];
-  Bool_t   isBeamTrigger[kMaxNEvents];
+  Double_t rf_time;
+  Bool_t   inBeamWindow;
+  Bool_t   isBeamTrigger;
 
-  Double_t timeWt[kMaxNEvents];
+  Double_t timeWt;
 
   // Other member variables
   TCanvas* fCanvas;
