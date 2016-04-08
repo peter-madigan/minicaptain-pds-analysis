@@ -25,9 +25,10 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 const Double_t PDSAnalysis::kSumThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
-const Double_t PDSAnalysis::kIntegralThreshold_pmt = 10.0; // ADC ticks
-const Double_t PDSAnalysis::kIntegralThreshold_pds = 5.0; // pe ns
+const Double_t PDSAnalysis::kIntegralThreshold_pmt = 7.0; // ADC ticks
+const Double_t PDSAnalysis::kIntegralThreshold_pds = 2.0; // pe ns
 const Double_t PDSAnalysis::kWidthThreshold    = 7.0/4.0; // ticks
+const Double_t PDSAnalysis::kRatioThreshold    = 0.15;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400*3; //           - 1600ns Ar triplet lifetime
@@ -140,6 +141,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   tree->Branch("pds_evno", pds_evno, "pds_evno[pds_nevent]/I");
   tree->Branch("pds_time", pds_time, "pds_time[pds_nevent]/D");
   tree->Branch("pds_peak", pds_peak, "pds_peak[pds_nevent]/D");
+  tree->Branch("pds_ratio",pds_ratio,"pds_ratio[pds_nevent]/D");
   tree->Branch("pds_FWHM", pds_FWHM, "pds_FWHM[pds_nevent]/D");
   tree->Branch("pds_hits", pds_hits, "pds_hits[pds_nevent]/D");
   tree->Branch("pds_integral", pds_integral, "pds_integral[pds_nevent]/D");
@@ -148,6 +150,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
 
   tree->Branch("pmt_time", pmt_time, "pmt_time[pds_nevent][15]/D");
   tree->Branch("pmt_peak", pmt_peak, "pmt_peak[pds_nevent][15]/D");
+  tree->Branch("pmt_ratio",pmt_ratio,"pmt_ratio[pds_nevent][15]/D");
   tree->Branch("pmt_FWHM", pmt_FWHM, "pmt_FWHM[pds_nevent][15]/D");
   tree->Branch("pmt_hits", pmt_hits, "pmt_hits[pds_nevent][15]/D");
   tree->Branch("pmt_integral", pmt_integral, "pmt_integral[pds_nevent][15]/D");
@@ -273,6 +276,10 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
   if( peak_time[0] != -9999 ) {
     pmt_peak[subevent][pmt] = hPMT->GetBinContent(peak_time[0]);
+    if( peak_time.size() > 1 )
+      pmt_ratio[subevent][pmt] = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
+    else
+      pmt_ratio[subevent][pmt] = 0;
     pmt_FWHM[subevent][pmt] = FWHM(hPMT, peak_time[0]);
     pmt_hits[subevent][pmt] = SumHits(hPMT, peak_time);
     pmt_time[subevent][pmt] = FindEvTime(hPMT, peak_time[0]);
@@ -282,6 +289,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
       pmt_integral[subevent][pmt] = NegativeIntegral(hPMT, peak_time);
   } else {
     pmt_peak[subevent][pmt] = -9999;
+    pmt_ratio[subevent][pmt] = -9999;
     pmt_FWHM[subevent][pmt] = -9999;
     pmt_hits[subevent][pmt] = -9999;
     pmt_time[subevent][pmt] = -9999; 
@@ -303,6 +311,10 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
   if( peak_time[0] != -9999 ) {
     pds_peak[subevent] = hPMT->GetBinContent(peak_time[0]);
+    if( peak_time.size() > 1 )
+      pds_ratio[subevent] = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
+    else
+      pds_ratio[subevent] = 0;
     pds_FWHM[subevent] = FWHM(hPMT, peak_time[0]);
     pds_hits[subevent] = SumHits(hPMT, peak_time);
     pds_time[subevent] = FindEvTime(hPMT, peak_time[0]);
@@ -312,6 +324,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
       pds_integral[subevent] = NegativeIntegral(hPMT, peak_time);
   } else {
     pds_peak[subevent] = -9999;
+    pds_ratio[subevent] = -9999;
     pds_FWHM[subevent] = -9999;
     pds_hits[subevent] = -9999;
     pds_time[subevent] = -9999;
@@ -355,8 +368,9 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
   if( pmt_hits[subevent][pmt] == -9999 ) return false;
   if( pmt_peak[subevent][pmt] == -9999 ) return false;
   if( pmt_integral[subevent][pmt] == -9999 ) return false;
-  if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
+  //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
   if( pmt_FWHM[subevent][pmt] < kWidthThreshold ) return false;
+  if( pmt_ratio[subevent][pmt] > kRatioThreshold ) return false;
   return true;
 }
 
@@ -367,8 +381,9 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_
   if( pds_hits[subevent] == -9999 ) return false;
   if( pds_peak[subevent] == -9999 ) return false;
   if( pds_integral[subevent] == -9999 ) return false;
-  if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
+  //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
   if( pds_FWHM[subevent] < kWidthThreshold ) return false;
+  if( pds_ratio[subevent] >  kRatioThreshold ) return false;
   return true;
 }
 
@@ -795,20 +810,22 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
 	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
 	    << "RF:" << Form("%.6g",rf_time[subevent] * kTick_to_ns) << "\t"
 	    << "BEAM?:" << inBeamWindow[subevent] << "\n"
-	    << "PMT:  \tTIME: \tPEAK: \tFWHM: \tINT:  \tBL:   \tFLAG?:" << "\n"
+	    << "PMT:  \tTIME: \tPEAK: \tFWHM: \tINT:  \tBL:   \tRATIO:\tFLAG?:" << "\n"
 	    << "PDS" << "\t" << Form("%.6g",pds_time[subevent] * kTick_to_ns) << "\t"
-	    << Form("%.5g",pds_peak[subevent] * -1.) << "\t"
-	    << Form("%.5g",pds_FWHM[subevent] * kTick_to_ns) << "\t"
-	    << Form("%.5g",pds_integral[subevent] * kTick_to_ns * -1.) << "\t"
-	    << Form("%.5g",pds_offset[subevent]) << "\t"
+	    << Form("%5.5g",pds_peak[subevent] * -1.) << "\t"
+	    << Form("%5.5g",pds_FWHM[subevent] * kTick_to_ns) << "\t"
+	    << Form("%5.5g",pds_integral[subevent] * kTick_to_ns * -1.) << "\t"
+	    << Form("%5.5g",pds_offset[subevent]) << "\t"
+	    << Form("%5.5g",pds_ratio[subevent]) << "\t"
 	    << pds_flag[subevent] << "\n";
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
     std::cout << pmt + 1 << "\t"
-	      << Form("%.6g",pmt_time[subevent][pmt] * kTick_to_ns) << "\t"
-	      << Form("%.5g",pmt_peak[subevent][pmt] * kADC_to_pe[pmt]) << "\t"
-	      << Form("%.5g",pmt_FWHM[subevent][pmt] * kTick_to_ns) << "\t"
-	      << Form("%.4g",pmt_integral[subevent][pmt] * kTick_to_ns * kADC_to_pe[pmt]) << "\t"
-	      << Form("%.5g",pmt_offset[subevent][pmt]) << "\t"
+	      << Form("%5.5g",pmt_time[subevent][pmt] * kTick_to_ns) << "\t"
+	      << Form("%5.5g",pmt_peak[subevent][pmt] * kADC_to_pe[pmt]) << "\t"
+	      << Form("%5.5g",pmt_FWHM[subevent][pmt] * kTick_to_ns) << "\t"
+	      << Form("%5.5g",pmt_integral[subevent][pmt] * kTick_to_ns * kADC_to_pe[pmt]) << "\t"
+	      << Form("%5.5g",pmt_offset[subevent][pmt]) << "\t"
+	      << Form("%5.5g",pmt_ratio[subevent][pmt]) << "\t"
 	      << pmt_flag[subevent][pmt] << "\n";
   std::cout << std::endl;
 }

@@ -30,6 +30,7 @@ class PDSAnalysis
   static const Double_t kIntegralThreshold_pmt;
   static const Double_t kIntegralThreshold_pds;
   static const Double_t kWidthThreshold;
+  static const Double_t kRatioThreshold;
 
   static const Int_t kPeakSearchWindow_pre;
   static const Int_t kPeakSearchWindow_post;
@@ -68,6 +69,7 @@ class PDSAnalysis
   Int_t    pds_evno[kMaxNEvents];
   Double_t pds_time[kMaxNEvents];
   Double_t pds_peak[kMaxNEvents];
+  Double_t pds_ratio[kMaxNEvents];
   Double_t pds_FWHM[kMaxNEvents];
   Double_t pds_hits[kMaxNEvents];
   Double_t pds_integral[kMaxNEvents];
@@ -76,6 +78,7 @@ class PDSAnalysis
 
   Double_t pmt_time[kMaxNEvents][kNPMTs];
   Double_t pmt_peak[kMaxNEvents][kNPMTs];
+  Double_t pmt_ratio[kMaxNEvents][kNPMTs];
   Double_t pmt_FWHM[kMaxNEvents][kNPMTs];
   Double_t pmt_hits[kMaxNEvents][kNPMTs];
   Double_t pmt_integral[kMaxNEvents][kNPMTs];
