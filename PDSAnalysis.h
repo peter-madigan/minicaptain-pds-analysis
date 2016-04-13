@@ -15,7 +15,7 @@ class PDSAnalysis
 {
  public:
   // Analysis constants
-  static const UInt_t kMaxNHits    = 1000;
+  static const UInt_t kMaxNHits    = 200;
   static const UInt_t kMaxNEvents  = 100;
   static const size_t kMaxNSamples = 2048; 
   static const size_t kNBoards     = 3;
@@ -111,6 +111,7 @@ class PDSAnalysis
   void DoPMTAnalysis(Int_t subevent, Int_t pmt);
   void DoPDSAnalysis(Int_t subevent);
   
+  std::vector<Int_t> CheckPeaks(TH1F* h, std::vector<Int_t> &peak_time);
   Bool_t IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time);
   Bool_t IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time);
 

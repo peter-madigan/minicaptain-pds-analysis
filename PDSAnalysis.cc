@@ -28,7 +28,7 @@ const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold_pmt = 7.0; // ADC ticks
 const Double_t PDSAnalysis::kIntegralThreshold_pds = 2.0; // pe ns
 const Double_t PDSAnalysis::kWidthThreshold    = 7.0/4.0; // ticks
-const Double_t PDSAnalysis::kRatioThreshold    = 0.25;
+const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400*2; // 1600ns Ar triplet lifetime
@@ -41,22 +41,22 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
   kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
-  kADC_to_pe.push_back(-1./6.421); // #2
-  kADC_to_pe.push_back(-1./5.777); // #3
-  kADC_to_pe.push_back(-1./6.343); // #4
-  kADC_to_pe.push_back(-1./7.541); // #5
+  kADC_to_pe.push_back(-1./7.565); // #2
+  kADC_to_pe.push_back(-1./7.667); // #3
+  kADC_to_pe.push_back(-1./7.000); // #4
+  kADC_to_pe.push_back(-1./8.200); // #5
 
-  kADC_to_pe.push_back(-1./4.592); // #6
-  kADC_to_pe.push_back(-1./5.513); // #7
-  kADC_to_pe.push_back(-1./4.187); // #8 
-  kADC_to_pe.push_back(-1./7.363); // #9
-  kADC_to_pe.push_back(-1./7.482); // #10
+  kADC_to_pe.push_back(-1./7.483); // #6
+  kADC_to_pe.push_back(-1./7.688); // #7
+  kADC_to_pe.push_back(-1./8.000); // #8 
+  kADC_to_pe.push_back(-1./8.833); // #9
+  kADC_to_pe.push_back(-1./8.625); // #10
 
-  kADC_to_pe.push_back(-1./5.908); // #11
-  kADC_to_pe.push_back(-1./5.625); // #12
-  kADC_to_pe.push_back(-1./7.522); // #13
-  kADC_to_pe.push_back(-1./6.101); // #14
-  kADC_to_pe.push_back(-1./6.964); // #15
+  kADC_to_pe.push_back(-1./7.056); // #11
+  kADC_to_pe.push_back(-1./7.418); // #12
+  kADC_to_pe.push_back(-1./8.388); // #13
+  kADC_to_pe.push_back(-1./7.432); // #14
+  kADC_to_pe.push_back(-1./7.889); // #15
 
   if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
@@ -76,7 +76,7 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
 
   if( fCalibration )
     std::cout << "Running in calibration mode..." << std::endl;
-  
+
   runno = runNum;
   std::cout << "Analyzing run number " << runno << "..." << std::endl;
 
@@ -150,10 +150,10 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
 
   tree->Branch("pmt_hits", pmt_hits, "pmt_hits[15]/I");
   tree->Branch("pmt_ratio",pmt_ratio,"pmt_ratio[15]/D");
-  tree->Branch("pmt_time", pmt_time, "pmt_time[15][1000]/D");
-  tree->Branch("pmt_peak", pmt_peak, "pmt_peak[15][1000]/D");
-  tree->Branch("pmt_FWHM", pmt_FWHM, "pmt_FWHM[15][1000]/D");
-  tree->Branch("pmt_integral", pmt_integral, "pmt_integral[15][1000]/D");
+  tree->Branch("pmt_time", pmt_time, "pmt_time[15][200]/D");
+  tree->Branch("pmt_peak", pmt_peak, "pmt_peak[15][200]/D");
+  tree->Branch("pmt_FWHM", pmt_FWHM, "pmt_FWHM[15][200]/D");
+  tree->Branch("pmt_integral", pmt_integral, "pmt_integral[15][200]/D");
   tree->Branch("pmt_dtime",    pmt_dtime,    "pmt_dtime[15][15]/D");
   tree->Branch("pmt_offset",   pmt_offset,   "pmt_offset[15]/D");
   tree->Branch("pmt_flag", pmt_flag, "pmt_flag[15]/O");
@@ -251,7 +251,7 @@ void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
     // Draw event
     if( pds_evno % (fPMTTree->GetEntries()/10)==0 )
       PrintEvent(subevent);
-    if( fViewerMode && false) {
+    if( fViewerMode ) {
       PrintEvent(subevent);
       DrawEvent(subevent);
     }
@@ -273,13 +273,14 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
+  peak_time = CheckPeaks(hPMT, peak_time);
   pmt_hits[pmt] = peak_time.size();
   if( peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
       pmt_ratio[pmt] = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
     else
       pmt_ratio[pmt] = 0;
-    for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
+    for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < PDSAnalysis::kMaxNHits; hit++ ) {
       pmt_peak[pmt][hit] = hPMT->GetBinContent(peak_time[hit]);
       pmt_FWHM[pmt][hit] = FWHM(hPMT, peak_time[hit]);
       pmt_time[pmt][hit] = FindEvTime(hPMT, peak_time[hit]);
@@ -306,6 +307,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
 
   // Find peaks in histogram   
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
+  peak_time = CheckPeaks(hPMT, peak_time);
   pds_hits = peak_time.size();
   if( peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
@@ -357,6 +359,64 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   hRF->Delete();
 }
 
+std::vector<Int_t> PDSAnalysis::CheckPeaks(TH1F* h, std::vector<Int_t> &peak_time) 
+{
+  // Noise filter for hits
+  if( peak_time[0] < 0 ) return peak_time;
+  if( peak_time.size() == 1 ) return peak_time;
+  
+  // Sort peaks in order of time
+  std::sort( peak_time.begin(), peak_time.end() );
+  
+  // Compare forward and back ratio
+  std::vector<Bool_t> cut_hit;
+  for( Int_t i = 0; i < peak_time.size(); i++ ) {
+    Double_t forward_ratio = 0;
+    Double_t backward_ratio = 0;
+    Double_t forward_dt = 100;
+    Double_t backward_dt = 100;
+    if( i+1<peak_time.size() ) {
+      forward_ratio = -h->GetBinContent(peak_time[i+1])/h->GetBinContent(peak_time[i]);
+      forward_dt = Abs( peak_time[i+1] - peak_time[i] );
+    }
+    if( i-1>=0 ) {
+      backward_ratio = -h->GetBinContent(peak_time[i-1])/h->GetBinContent(peak_time[i]);
+      backward_dt = Abs(peak_time[i-1] - peak_time[i] );
+    }
+    
+    if( backward_ratio  > kRatioThreshold && backward_dt < 10 ) 
+      cut_hit.push_back(true);
+    else if( forward_ratio > kRatioThreshold && forward_dt < 10 ) 
+      cut_hit.push_back(true);
+    else if( h->GetBinContent(peak_time[i]) > 0 )
+      cut_hit.push_back(true);
+    else 
+      cut_hit.push_back(false);
+  }
+
+  // Cut peaks that fail ratio test and place largest element at start
+  std::vector<Int_t> new_vector;
+  Int_t maxi = 0;
+  for( Int_t i = 0; i < peak_time.size(); i++ ) {
+    if( !cut_hit[i] ) {
+      new_vector.push_back(peak_time[i]);
+      if( h->GetBinContent(new_vector[new_vector.size()-1]) < h->GetBinContent(new_vector[maxi]) )
+	maxi = new_vector.size()-1;
+    }
+  }
+
+  if( new_vector.empty() )
+    new_vector.push_back(-9999);
+      
+  // Place largest element at start
+  if( maxi != 0 ) {
+    new_vector.insert(new_vector.begin(), new_vector[maxi]);
+    new_vector.erase(new_vector.begin()+maxi+1);
+  }
+
+  return new_vector;
+}
+
 Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
 {
   if( pmt_time[pmt][0] == -9999 ) return false;
@@ -364,8 +424,8 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
   if( pmt_peak[pmt][0] == -9999 ) return false;
   if( pmt_integral[pmt][0] == -9999 ) return false;
   //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
-  if( pmt_FWHM[pmt][0] < kWidthThreshold ) return false;
-  if( pmt_ratio[pmt] > kRatioThreshold ) return false;
+  //if( pmt_FWHM[pmt][0] < kWidthThreshold ) return false;
+  //if( pmt_ratio[pmt] > kRatioThreshold ) return false;
   return true;
 }
 
@@ -376,8 +436,8 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_
   if( pds_peak[0] == -9999 ) return false;
   if( pds_integral[0] == -9999 ) return false;
   //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
-  if( pds_FWHM[0] < kWidthThreshold ) return false;
-  if( pds_ratio >  kRatioThreshold ) return false;
+  //if( pds_FWHM[0] < kWidthThreshold ) return false;
+  //if( pds_ratio >  kRatioThreshold ) return false;
   return true;
 }
 
@@ -590,8 +650,6 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
   if( rf_time < 1 || rf_time > fNSamples )
     if( rf_time != -9999 ) {
       std::cout << "ERROR: RF time is " << rf_time * kTick_to_ns << "ns!" << std::endl;
-      PrintEvent(0);
-      DrawEvent(0);
       return -9999;
     }
   return rf_time;
@@ -798,7 +856,7 @@ void PDSAnalysis::ConvertUnits(Int_t subevent)
   }
   rf_time *= kTick_to_ns;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-    for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
+    for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < PDSAnalysis::kMaxNHits; hit++ ) {
       pmt_time[pmt][hit] *= kTick_to_ns;
       pmt_peak[pmt][hit] *= kADC_to_pe[pmt];
       pmt_FWHM[pmt][hit] *= kTick_to_ns;
@@ -885,6 +943,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   if( pds_flag ) {
     RemoveADCOffset(hSum);
     std::vector<Int_t> peak_time = FindPeaks(hSum,-1);
+    peak_time = CheckPeaks(hSum, peak_time);
     hSum->Scale(2);
     RemoveADCOffset(hSum,-50);
     hSum->GetXaxis()->SetRangeUser(xmin,xmax);
@@ -982,6 +1041,29 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
     // Draw PMT lines
     if( pmt_flag[pmt] ) {
+      RemoveADCOffset(h);
+      std::vector<Int_t> peak_time = FindPeaks(h, pmt);
+      peak_time = CheckPeaks(h, peak_time);
+      RemoveADCOffset(h,pmt*10);
+      h->GetXaxis()->SetRangeUser(xmin,xmax);
+      h->GetYaxis()->SetRangeUser(ymin,ymax);
+
+      Int_t n = peak_time.size();
+      Double_t t[n];
+      Double_t y[n];
+      for( int i = 0; i < n; i++ ) {
+	Double_t dt = h->GetBinWidth(peak_time[i])/2;
+	t[i] = h->GetBinLowEdge(peak_time[i]) + dt;
+	y[i] = h->GetBinContent(peak_time[i]);
+      }
+      TGraph* g_peak = new TGraph(n,t,y);
+      pmt_hists->Add(g_peak);
+      g_peak->SetMarkerStyle(24);
+      g_peak->SetMarkerColor(kRed);
+      g_peak->SetMarkerSize(0.5);
+      g_peak->Draw("same p");
+
+
       TLine* l_threshold1 =new TLine(xmin, kPMTThreshold/kADC_to_pe[pmt]+pmt*10, xmax, kPMTThreshold/kADC_to_pe[pmt]+pmt*10);
       TLine* l_threshold2 = new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*10, xmax, -kPMTThreshold/kADC_to_pe[pmt]+pmt*10);
       pmt_lines->Add(l_threshold1);
