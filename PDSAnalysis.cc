@@ -65,7 +65,7 @@ void PDSAnalysis::InitializeADC_to_pe() {
   kADC_to_pe.push_back(-1./7.432); // #14
   kADC_to_pe.push_back(-1./7.889); // #15
 
-  //  if( fCalibration )
+  if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
       kADC_to_pe[pmt] = 1.0;
 }
@@ -451,21 +451,21 @@ std::vector<Int_t> PDSAnalysis::CheckPeaks(TH1F* h, std::vector<Int_t> &peak_tim
   std::vector<Bool_t> cut_hit;
   for( Int_t i = 0; i < (Int_t)peak_time.size(); i++ ) {
     Double_t forward_ratio = 0;
-    Double_t backward_ratio = 0;
+    //Double_t backward_ratio = 0;
     Double_t forward_dt = 100;
-    Double_t backward_dt = 100;
+    //Double_t backward_dt = 100;
     if( i+1<(Int_t)peak_time.size() ) {
       forward_ratio = -h->GetBinContent(peak_time[i+1])/h->GetBinContent(peak_time[i]);
       forward_dt = Abs( peak_time[i+1] - peak_time[i] );
     }
-    if( i-1>=0 ) {
-      backward_ratio = -h->GetBinContent(peak_time[i-1])/h->GetBinContent(peak_time[i]);
-      backward_dt = Abs(peak_time[i-1] - peak_time[i] );
-    }
+    //if( i-1>=0 ) {
+    //backward_ratio = -h->GetBinContent(peak_time[i-1])/h->GetBinContent(peak_time[i]);
+    //backward_dt = Abs(peak_time[i-1] - peak_time[i] );
+    //}
     
-    if( backward_ratio  > kRatioThreshold && backward_dt < 10 ) 
-      cut_hit.push_back(true);
-    else if( forward_ratio > kRatioThreshold && forward_dt < 10 ) 
+    //if( backward_ratio  > kRatioThreshold && backward_dt < 10 ) 
+    //cut_hit.push_back(true);
+    if( forward_ratio > kRatioThreshold && forward_dt < 10 ) 
       cut_hit.push_back(true);
     else if( h->GetBinContent(peak_time[i]) > 0 )
       cut_hit.push_back(true);
@@ -504,7 +504,7 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
   if( pmt_peak[pmt][0] == -9999 ) return false;
   if( pmt_integral[pmt][0] == -9999 ) return false;
   //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
-  if( pmt_FWHM[pmt][0] < kWidthThreshold ) return false;
+  //if( pmt_FWHM[pmt][0] < kWidthThreshold ) return false;
   //if( pmt_ratio[pmt] > kRatioThreshold ) return false;
   return true;
 }
@@ -516,7 +516,7 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_
   if( pds_peak[0] == -9999 ) return false;
   if( pds_integral[0] == -9999 ) return false;
   //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
-  if( pds_FWHM[0] < kWidthThreshold ) return false;
+  //if( pds_FWHM[0] < kWidthThreshold ) return false;
   //if( pds_ratio >  kRatioThreshold ) return false;
   return true;
 }
@@ -555,7 +555,7 @@ TH1F* PDSAnalysis::GetPMTSum(TString s)
     UInt_t channel = pmt % 5;
     
     for( UInt_t sample = 0; sample < fNSamples; sample++ ) {
-      h->Fill(sample, fDigitizerWaveform[board][channel][sample]);// * kADC_to_pe[pmt]);
+      h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
     }
   }
 
@@ -580,7 +580,7 @@ TH1F* PDSAnalysis::GetRFMean()
 Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset) 
 {
   // calculates an offset from a 100ns interval
-  // returns the offset with a std. dev. < 0.75 ADC or the offset with the smallest std. dev. (the faster of the two)
+  // returns the offset with a std. dev. < 1 ADC or the offset with the smallest std. dev. (the faster of the two)
   Double_t offset = 0.0;
   Double_t offset_min = 0.0; 
 
@@ -592,7 +592,7 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   Double_t sumsq = Power(n, 2);
   Double_t stddev = Sqrt(sumsq/n - Power(sum/n,2));
   Double_t stddev_min = Sqrt(sumsq/n - Power(sum/n,2));
-  while( stddev > 0.75 && end < fNSamples ) {
+  while( stddev > 1.0 && end < fNSamples ) {
     sum = 0;
     sumsq = 0;
     for( UInt_t sample = start; sample < end; sample++ ) {
@@ -677,7 +677,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   else if( pmt < 0 )
     threshold = -kSumThreshold;
   else
-    threshold = kPMTThreshold;// / kADC_to_pe[pmt];
+    threshold = kPMTThreshold / kADC_to_pe[pmt];
   
   // Find global minimum
   std::vector<Int_t> peak_time(1,-9999);

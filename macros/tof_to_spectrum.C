@@ -52,6 +52,17 @@ void tof_to_spectrum() {
   Double_t ymin= 0;
   Double_t ymax= 1e5;
 
+  TF1* tofToEnergy = new TF1("tofToEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)+[0]/[1]",100,800);
+  tofToEnergy->FixParameter(0, tof_length);
+  tofToEnergy->FixParameter(1, c);
+  tofToEnergy->FixParameter(2, mass);
+  
+  tofToEnergy -> Draw();
+  c1->Update();
+
+  TGaxis* time_axis = new TGaxis(100,1,800,1,"tofToEnergy");
+  time_axis->SetTitle("TOF (ns)");
+
   Double_t energy;
   Double_t energy_err;
   TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
@@ -81,16 +92,19 @@ void tof_to_spectrum() {
   }
   
   h_spectrum -> Draw("e");
+  time_axis -> Draw("same");
 
   c1 -> DrawClone();
   c1 -> cd();
 
   h_peak -> Draw("colz");
+  time_axis -> Draw("same");
 
   c1 -> DrawClone();
   c1 -> cd();
 
   h_integral -> Draw("colz");
+  time_axis -> Draw("same");
 }
 
 Double_t time_to_p(Double_t time) { // expects units of sec
