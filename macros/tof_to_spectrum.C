@@ -52,15 +52,19 @@ void tof_to_spectrum() {
   Double_t ymin= 0;
   Double_t ymax= 1e5;
 
-  TF1* tofToEnergy = new TF1("tofToEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)+[0]/[1]",100,800);
+  TF1* tofFromEnergy = new TF1("tofFromEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)",xmin,xmax);
+  tofFromEnergy->FixParameter(0, tof_length);
+  tofFromEnergy->FixParameter(1, c);
+  tofFromEnergy->FixParameter(2, mass);
+  TF1* tofToEnergy = new TF1("tofToEnergy","[2]*(sqrt(1 / (((1702.8-x) * 1e-9 * [1] / [0])^2 - 1) + 1) - 1)",103.28+tof_length/c*1e9,1598.8+tof_length/c*1e9);
   tofToEnergy->FixParameter(0, tof_length);
   tofToEnergy->FixParameter(1, c);
   tofToEnergy->FixParameter(2, mass);
   
-  tofToEnergy -> Draw();
+  tofToEnergy->Draw();
   c1->Update();
 
-  TGaxis* time_axis = new TGaxis(100,1,800,1,"tofToEnergy");
+  TGaxis* time_axis = new TGaxis(800,10,100,10,"tofToEnergy",510);
   time_axis->SetTitle("TOF (ns)");
 
   Double_t energy;
@@ -89,22 +93,20 @@ void tof_to_spectrum() {
       h_integral -> Fill( E, integral_sum );                                           
       //MCConvolve( h_integral, p, p_err(time), integral_sum );
     }
-  }
-  
+  }  
+
   h_spectrum -> Draw("e");
   time_axis -> Draw("same");
-
+  
   c1 -> DrawClone();
   c1 -> cd();
 
   h_peak -> Draw("colz");
-  time_axis -> Draw("same");
-
+  
   c1 -> DrawClone();
   c1 -> cd();
 
   h_integral -> Draw("colz");
-  time_axis -> Draw("same");
 }
 
 Double_t time_to_p(Double_t time) { // expects units of sec
