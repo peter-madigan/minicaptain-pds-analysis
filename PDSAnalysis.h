@@ -4,12 +4,17 @@
 #include <iostream>
 #include <unistd.h>
 #include <vector>
+#include <complex>
+#include <valarray>
 
 #include <Rtypes.h>
 #include <TTree.h>
 #include <TString.h>
 #include <TH1.h>
 #include <TCanvas.h>
+
+typedef std::complex<double> Complex;
+typedef std::valarray<Complex> CArray;
 
 class PDSAnalysis 
 {
@@ -21,6 +26,8 @@ class PDSAnalysis
   static const size_t kNBoards     = 3;
   static const size_t kNChannels   = 6;
   static const size_t kNPMTs       = 15;
+
+  static const Double_t kPi;
   
   static const Int_t kTrigger;
   static const Double_t kSampleRate;
@@ -97,6 +104,7 @@ class PDSAnalysis
   TCanvas* fCanvas;
   Bool_t   fCalibration;
   Bool_t   fViewerMode;
+  TH1F*    fMeanWaveform;
 
   // functions
   PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root", Bool_t CalibrationMode=false, Bool_t ViewerMode=false);
@@ -116,9 +124,10 @@ class PDSAnalysis
   Bool_t IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time);
 
   TH1F* GetPMT(Int_t pmt);
-  TH1F* GetPMTSum();
+  TH1F* GetPMTSum(TString s="");
   TH1F* GetRFMean();
   Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
+  TH1F* FFTFilter(TH1F* h);
 
   std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
   Double_t FindEvTime(TH1F* h, Int_t peak_time);
@@ -133,6 +142,9 @@ class PDSAnalysis
   Double_t QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double_t p);
 
   void ConvertUnits(Int_t subevent);
+
+  void FFT(CArray &x);
+  void IFFT(CArray &x);
 
   void PrintEvent(Int_t subevent);
   void DrawEvent(Int_t subevent);

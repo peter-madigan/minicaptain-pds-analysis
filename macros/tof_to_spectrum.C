@@ -1,5 +1,5 @@
-Double_t calib_time = -671e-9; // 2016-4-4 pmadigan
-Double_t time_err   = 4e-9; // sec -- overestimate
+Double_t calib_time = -671e-9; // sec 
+Double_t time_err   = 2e-9; // sec -- overestimate
 Double_t tof_length = 23.18; // m -- 2016-3 pmadigan
 Double_t length_err = 0.01; // m 
 
@@ -74,11 +74,10 @@ void tof_to_spectrum() {
 	    integral_sum += pmt_integral[pmt][hit];
 	  }
 	}
-	h_peak -> Fill( p, peak_sum );
-	//MCConvolve( h_peak, p, p_err(time), pmt_peak[jentry] );
-	h_integral -> Fill( p, integral_sum );
-	//MCConvolve( h_integral, p, p_err(time), pmt_integral[jentry] );
-	//}
+	h_peak -> Fill( p, peak_sum );                                                 
+	//MCConvolve( h_peak, p, p_err(time), peak_sum );
+	h_integral -> Fill( p, integral_sum );                                           
+	//MCConvolve( h_integral, p, p_err(time), integral_sum );
       }
     }
   }
