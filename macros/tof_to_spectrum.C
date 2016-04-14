@@ -1,4 +1,4 @@
-Double_t calib_time = -671e-9; // sec 
+Double_t calib_time = -671.4e-9; // sec 
 Double_t time_err   = 2e-9; // sec -- overestimate
 Double_t tof_length = 23.18; // m -- 2016-3 pmadigan
 Double_t length_err = 0.01; // m 
@@ -13,35 +13,35 @@ void tof_to_spectrum() {
   gROOT -> ProcessLine(".X chainFiles.C");
 
   UInt_t runno;
-  Int_t pmt_nevent[15];
-  Int_t pmt_hits[15];
-  Double_t pmt_peak[15][200];
-  Double_t pmt_integral[15][200];
-  Double_t pmt_time[15][200];
+  Int_t pds_nevent;
+  Int_t pds_hits;
+  Double_t pds_peak[200];
+  Double_t pds_integral[200];
+  Double_t pds_time[200];
   Double_t rf_time;
-  Bool_t  pmt_flag[15];
+  Bool_t  pds_flag;
   Bool_t  inBeamWindow;
   Bool_t  isBeamTrigger;
 
   pdsEvTree -> SetBranchStatus("*", kFALSE);
     
   pdsEvTree -> SetBranchAddress("runno", &runno);
-  pdsEvTree -> SetBranchAddress("pmt_hits",    pmt_hits);
-  pdsEvTree -> SetBranchAddress("pmt_peak",    pmt_peak);
-  pdsEvTree -> SetBranchAddress("pmt_integral",pmt_integral);
-  pdsEvTree -> SetBranchAddress("pmt_time",    pmt_time);
+  pdsEvTree -> SetBranchAddress("pds_hits",   &pds_hits);
+  pdsEvTree -> SetBranchAddress("pds_peak",    pds_peak);
+  pdsEvTree -> SetBranchAddress("pds_integral",pds_integral);
+  pdsEvTree -> SetBranchAddress("pds_time",    pds_time);
   pdsEvTree -> SetBranchAddress("rf_time",    &rf_time);
-  pdsEvTree -> SetBranchAddress("pmt_flag",    pmt_flag);
+  pdsEvTree -> SetBranchAddress("pds_flag",   &pds_flag);
   pdsEvTree -> SetBranchAddress("inBeamWindow",&inBeamWindow);
   pdsEvTree -> SetBranchAddress("isBeamTrigger",&isBeamTrigger);
 
   pdsEvTree -> SetBranchStatus("runno", kTRUE);
-  pdsEvTree -> SetBranchStatus("pmt_hits",kTRUE);
-  pdsEvTree -> SetBranchStatus("pmt_peak",kTRUE);
-  pdsEvTree -> SetBranchStatus("pmt_integral",kTRUE);
-  pdsEvTree -> SetBranchStatus("pmt_time",kTRUE);
+  pdsEvTree -> SetBranchStatus("pds_hits",kTRUE);
+  pdsEvTree -> SetBranchStatus("pds_peak",kTRUE);
+  pdsEvTree -> SetBranchStatus("pds_integral",kTRUE);
+  pdsEvTree -> SetBranchStatus("pds_time",kTRUE);
   pdsEvTree -> SetBranchStatus("rf_time",kTRUE);
-  pdsEvTree -> SetBranchStatus("pmt_flag",kTRUE);
+  pdsEvTree -> SetBranchStatus("pds_flag",kTRUE);
   pdsEvTree -> SetBranchStatus("inBeamWindow",kTRUE);
   pdsEvTree -> SetBranchStatus("isBeamTrigger",kTRUE);
 
@@ -54,31 +54,29 @@ void tof_to_spectrum() {
 
   Double_t energy;
   Double_t energy_err;
-  TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron p (MeV/c);Count",nbinsx,xmin,xmax);
+  TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
   h_spectrum -> Sumw2();
-  TH2F* h_peak = new TH2F("h_peak",";Neutron p (MeV/c);PDS response (pe)",nbinsx,xmin,xmax,nbinsy,ymin,100);
-  TH2F* h_integral = new TH2F("h_integral",";Neutron p (MeV/c);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,1e3);
+  TH2F* h_peak = new TH2F("h_peak",";Neutron E_{kin} (MeV);PDS response (pe)",nbinsx,xmin,xmax,nbinsy,ymin,100);
+  TH2F* h_integral = new TH2F("h_integral",";Neutron E_{kin} (MeV);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,1e3);
   for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
-    for( Int_t pmt = 0; pmt < 15; pmt++ ) {
-      if( pmt_flag[pmt] && inBeamWindow && !isBeamTrigger ) {
-	Double_t time = (pmt_time[pmt][0] - rf_time) * 1e-9;
-	Double_t p = time_to_p(time);
-	Double_t E = Sqrt( Power(p,2) + Power(mass,2) );
-	h_spectrum -> Fill(p);
-	//MCConvolve( h_spectrum, p, p_err(time) );
-	Double_t peak_sum = 0;
-	Double_t integral_sum = 0;
-	for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
-	  if( pmt_time[pmt][hit] >= pmt_time[pmt][0] ) { 
-	    peak_sum += pmt_peak[pmt][hit];
-	    integral_sum += pmt_integral[pmt][hit];
-	  }
+    if( pds_flag && inBeamWindow && !isBeamTrigger ) {
+      Double_t time = (pds_time[0] - rf_time) * 1e-9;
+      Double_t p = time_to_p(time);
+      Double_t E = Sqrt( Power(p,2) + Power(mass,2) ) - mass;
+      h_spectrum -> Fill(E);
+      //MCConvolve( h_spectrum, p, p_err(time) );
+      Double_t peak_sum = 0;
+      Double_t integral_sum = 0;
+      for( Int_t hit = 0; hit < pds_hits; hit++ ) {
+	if( pds_time[hit] >= pds_time[0] ) { 
+	  peak_sum += pds_peak[hit];
+	  integral_sum += pds_integral[hit];
 	}
-	h_peak -> Fill( p, peak_sum );                                                 
-	//MCConvolve( h_peak, p, p_err(time), peak_sum );
-	h_integral -> Fill( p, integral_sum );                                           
-	//MCConvolve( h_integral, p, p_err(time), integral_sum );
       }
+      h_peak -> Fill( E, pds_peak[0] );                   
+      //MCConvolve( h_peak, p, p_err(time), peak_sum );
+      h_integral -> Fill( E, integral_sum );                                           
+      //MCConvolve( h_integral, p, p_err(time), integral_sum );
     }
   }
   
