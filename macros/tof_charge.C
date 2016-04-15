@@ -1,6 +1,6 @@
 static const Int_t kNPMTs = 15;
 static const Int_t kMaxNHits = 200;
-static const Double_t kDelay = -671.4 - 77.267;
+static const Double_t kDelay = -671.25 - 77.267;
 
 Int_t    pds_hits;
 Double_t pds_ratio;
@@ -50,6 +50,7 @@ void tof_charge() {
   pdsEvTree->SetBranchStatus("isBeamTrigger",kTRUE);
   pdsEvTree->SetBranchStatus("rf_time",kTRUE);
 
+  // Create plots
   Double_t ymin = 0;
   Double_t ymax = 100;
   Double_t xmin = -1.7e3;
@@ -63,8 +64,21 @@ void tof_charge() {
   TH2F* h_FWHM = new TH2F("h_FWHM",";tof (ns);FWHM",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
   TH1F* h_tof = new TH1F("h_tof",";tof (ns);hits",nbinsx,xmin,xmax);
   TH1F* h_tof_prompt = new TH1F("h_tof_prompt",";tof (ns);hits",nbinsx,xmin,xmax);
+  TH1F* h_tof_filtered = new TH1F("h_tof_prompt",";tof (ns);hits",nbinsx,xmin,xmax);
   TH2F* h_shape = new TH2F("h_shape",";sum;height",nbinsy,ymin,ymax*2,nbinsy,ymin,ymax);
+
+  TH2F* h_ratio = new TH2F("h_ratio",";tof (ns);integral_{prompt}/integral_{ev}",90,60,150,nbinsy,0,1);
   
+  // For removing gammas from spectrum
+  TF1* fGaus = new TF1("fGaus","gaus",xmin,xmax);
+  double height = 67.623; 
+  double mean   = 77.267;
+  double sigma  = 4.9;
+  fGaus -> SetParameters(height, mean, sigma);
+  TH1F* h_gamma_tof = new TH1F("h_gamma_tof","",nbinsx,xmin,xmax);
+  for( int i = 1; i < h_gamma_tof->GetNbinsX()+1; i++ )
+    h_gamma_tof->SetBinContent(i, fGaus->Eval(h_gamma_tof->GetBinCenter(i)));
+
   // Loop over events
   pdsEvTree->GetEntry(0);
   for( Int_t i = 0; pdsEvTree->GetEntry(i); i++ ) {
@@ -92,9 +106,14 @@ void tof_charge() {
       h_tof_prompt->Fill(pds_time[0] - rf_time - kDelay);
       h_hits->Fill(pds_time[0] - rf_time - kDelay, peak_sum);
       h_integral->Fill(pds_time[0] - rf_time - kDelay,integral_sum);
-      h_shape->Fill(peak_sum,pds_peak[0]);
+      h_shape->Fill(integral_sum,pds_peak[0]);
+      h_ratio->Fill(pds_time[0] - rf_time - kDelay,pds_integral[0]/integral_sum);
     }
   }
+  h_tof_filtered->Add(h_tof_prompt,h_gamma_tof,1,-1);
+  for( int i = 1; i < h_tof_filtered->GetNbinsX()+1; i++ )
+    if( h_tof_filtered->GetBinContent(i) < 0 )
+      h_tof_filtered->SetBinContent(i, 0);
   
   h_integral->Draw("colz");
   c1->SetLogz();
@@ -119,13 +138,25 @@ void tof_charge() {
 
   c1->cd();
   h_tof_prompt->Draw();
+  fGaus->Draw("same");
   c1->cd()->SetLogy();
   c1->SaveAs("plots/tof-count-prompt.C");
+  c1->DrawClone();
+
+  c1->cd();
+  h_tof_filtered->Draw();
+  c1->cd()->SetLogy();
+  c1->SaveAs("plots/tof-count-filt.C");
   c1->DrawClone();
 
   c1->cd()->SetLogy(0);
   h_shape->Draw("colz");
   c1->SaveAs("plots/tof-shape.C");
+  c1->DrawClone();
+
+  c1->cd();
+  h_ratio->Draw("colz");
+  c1->SaveAs("plots/tof-ratio.C");
   c1->DrawClone();
 
   c1->cd();

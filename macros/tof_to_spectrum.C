@@ -1,4 +1,4 @@
-Double_t calib_time = -671.4e-9; // sec 
+Double_t calib_time = -671.25e-9; // sec 
 Double_t time_err   = 2e-9; // sec -- overestimate
 Double_t tof_length = 23.18; // m -- 2016-3 pmadigan
 Double_t length_err = 0.01; // m 
@@ -11,6 +11,7 @@ using namespace TMath;
 
 void tof_to_spectrum() {
   gROOT -> ProcessLine(".X chainFiles.C");
+  gROOT -> ProcessLine(".X plots/tof-count-filt.C");
 
   UInt_t runno;
   Int_t pds_nevent;
@@ -52,27 +53,24 @@ void tof_to_spectrum() {
   Double_t ymin= 0;
   Double_t ymax= 1e5;
 
-  TF1* tofFromEnergy = new TF1("tofFromEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)",xmin,xmax);
+  TF1* tofFromEnergy = new TF1("tofFromEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)*1e9",10,800);
   tofFromEnergy->FixParameter(0, tof_length);
   tofFromEnergy->FixParameter(1, c);
   tofFromEnergy->FixParameter(2, mass);
-  TF1* tofToEnergy = new TF1("tofToEnergy","[2]*(sqrt(1 / (((1702.8-x) * 1e-9 * [1] / [0])^2 - 1) + 1) - 1)",103.28+tof_length/c*1e9,1598.8+tof_length/c*1e9);
+  TF1* tofToEnergy = new TF1("tofToEnergy","[2]*(sqrt(1 / (((x) * 1e-9 * [1] / [0])^2 - 1) + 1) - 1)",14.54+77.26,456.54+77.26);
   tofToEnergy->FixParameter(0, tof_length);
   tofToEnergy->FixParameter(1, c);
   tofToEnergy->FixParameter(2, mass);
   
-  tofToEnergy->Draw();
-  c1->Update();
-
-  TGaxis* time_axis = new TGaxis(800,10,100,10,"tofToEnergy",510);
-  time_axis->SetTitle("TOF (ns)");
-
   Double_t energy;
   Double_t energy_err;
   TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
   h_spectrum -> Sumw2();
   TH2F* h_peak = new TH2F("h_peak",";Neutron E_{kin} (MeV);PDS response (pe)",nbinsx,xmin,xmax,nbinsy,ymin,100);
   TH2F* h_integral = new TH2F("h_integral",";Neutron E_{kin} (MeV);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,1e3);
+
+  TH1F* h_spectrum_corr = new TH1F("h_spectrum_corr",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
+  h_spectrum_corr -> Sumw2();
   for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
     if( pds_flag && inBeamWindow && !isBeamTrigger ) {
       Double_t time = (pds_time[0] - rf_time) * 1e-9;
@@ -92,12 +90,38 @@ void tof_to_spectrum() {
       //MCConvolve( h_peak, p, p_err(time), peak_sum );
       h_integral -> Fill( E, integral_sum );                                           
       //MCConvolve( h_integral, p, p_err(time), integral_sum );
+
+      time = h_tof_prompt->GetRandom()*1e-9;
+      time += calib_time - tof_length/c;
+      p = time_to_p(time);
+      E = Sqrt( Power(p,2) + Power(mass,2) ) - mass;
+      h_spectrum_corr -> Fill(E);
     }
   }  
 
-  h_spectrum -> Draw("e");
-  time_axis -> Draw("same");
-  
+  TCanvas* c1 = new TCanvas();
+
+  gStyle->SetOptStat(0);
+
+  h_spectrum->GetXaxis()->SetRangeUser(0,800);
+  h_spectrum->GetYaxis()->SetRangeUser(0,300);
+  h_spectrum->Draw("e");
+
+  Float_t rightmax = tofFromEnergy->Eval(10);
+  Float_t rightmin = tofFromEnergy->Eval(800);
+  Float_t scale = (300)/(rightmax);
+  tofFromEnergy->FixParameter(0, tof_length * scale);
+  tofFromEnergy->Draw("same");
+
+  TGaxis *axis = new TGaxis(800,0,800,tofFromEnergy->Eval(10),0,rightmax,510,"+L");
+  axis->SetTitle("TOF (ns)");
+  axis->Draw("same");
+
+  c1 -> DrawClone();
+  c1 -> cd();
+
+  h_spectrum_corr->Draw("e");
+
   c1 -> DrawClone();
   c1 -> cd();
 
