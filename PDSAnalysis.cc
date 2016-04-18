@@ -1062,7 +1062,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
   pmt_hists->Add(hSum);
-  RemoveADCOffset(hSum);
+  //RemoveADCOffset(hSum);
   //FFTFilter(hSum, -1);
   RemoveADCOffset(hSum,-50);
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
@@ -1105,8 +1105,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     g_peak->SetMarkerSize(0.7);
     g_peak->Draw("same p");
 
-    TLine* l_threshold1 = new TLine(xmin, kSumThreshold*2-50, xmax, kSumThreshold*2-50);
-    TLine* l_threshold2 = new TLine(xmin, -kSumThreshold*2-50, xmax, -kSumThreshold*2-50);
+    TLine* l_threshold1 = new TLine(xmin, kSumThreshold*3-50, xmax, kSumThreshold*3-50);
+    TLine* l_threshold2 = new TLine(xmin, -kSumThreshold*3-50, xmax, -kSumThreshold*3-50);
     pmt_lines->Add(l_threshold1);
     pmt_lines->Add(l_threshold2);
     l_threshold1->SetLineColor(kBlue + 2);
@@ -1122,7 +1122,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     l_time->SetLineStyle(2);
     l_time->Draw("same");
 
-    TLine* l_peak = new TLine(xmin, pds_peak[0]*2-50, xmax, pds_peak[0]*2-50);
+    TLine* l_peak = new TLine(xmin, pds_peak[0]*3-50, xmax, pds_peak[0]*3-50);
     pmt_lines->Add(l_peak);
     l_peak->SetLineColor(kViolet + 2);
     l_peak->SetLineStyle(2);

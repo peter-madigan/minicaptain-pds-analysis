@@ -65,12 +65,15 @@ void tof_to_spectrum() {
   Double_t energy;
   Double_t energy_err;
   TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
-  h_spectrum -> Sumw2();
   TH2F* h_peak = new TH2F("h_peak",";Neutron E_{kin} (MeV);PDS response (pe)",nbinsx,xmin,xmax,nbinsy,ymin,100);
   TH2F* h_integral = new TH2F("h_integral",";Neutron E_{kin} (MeV);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,1e3);
 
   TH1F* h_spectrum_corr = new TH1F("h_spectrum_corr",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
-  h_spectrum_corr -> Sumw2();
+
+  TObjArray* h_spectrum_shift = new TObjArray();
+  h_spectrum_shift->Add(new TH1F("h_spectrum_p1",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax));
+  h_spectrum_shift->Add(new TH1F("h_spectrum_m1",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax));
+
   for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
     if( pds_flag && inBeamWindow && !isBeamTrigger ) {
       Double_t time = (pds_time[0] - rf_time) * 1e-9;
@@ -91,11 +94,22 @@ void tof_to_spectrum() {
       h_integral -> Fill( E, integral_sum );                                           
       //MCConvolve( h_integral, p, p_err(time), integral_sum );
 
-      time = h_tof_prompt->GetRandom()*1e-9;
-      time += calib_time - tof_length/c;
+      time = (pds_time[0] - rf_time) * 1e-9;
+      //time = h_tof_filt->GetRandom()*1e-9;
+      //time += calib_time - tof_length/c;
       p = time_to_p(time);
       E = Sqrt( Power(p,2) + Power(mass,2) ) - mass;
       h_spectrum_corr -> Fill(E);
+
+      time += -2e-9;
+      p = time_to_p(time);
+      E = Sqrt( Power(p,2) + Power(mass,2) ) - mass;
+      ((TH1F*)h_spectrum_shift->At(0)) -> Fill(E);
+
+      time += +4e-9;
+      p = time_to_p(time);
+      E = Sqrt( Power(p,2) + Power(mass,2) ) - mass;
+      ((TH1F*)h_spectrum_shift->At(1)) -> Fill(E);
     }
   }  
 
@@ -104,8 +118,8 @@ void tof_to_spectrum() {
   gStyle->SetOptStat(0);
 
   h_spectrum->GetXaxis()->SetRangeUser(0,800);
-  h_spectrum->GetYaxis()->SetRangeUser(0,300);
-  h_spectrum->Draw("e");
+  h_spectrum->GetYaxis()->SetRangeUser(1,200);
+  h_spectrum->Draw("");
 
   Float_t rightmax = tofFromEnergy->Eval(10);
   Float_t rightmin = tofFromEnergy->Eval(800);
@@ -120,7 +134,17 @@ void tof_to_spectrum() {
   c1 -> DrawClone();
   c1 -> cd();
 
-  h_spectrum_corr->Draw("e");
+  ((TH1F*)h_spectrum_shift->At(0))->GetXaxis()->SetRangeUser(0,800);
+  ((TH1F*)h_spectrum_shift->At(0))->GetYaxis()->SetRangeUser(1,200);
+  
+  ((TH1F*)h_spectrum_shift->At(0))->SetLineColor(kRed);
+  ((TH1F*)h_spectrum_shift->At(1))->SetLineColor(kRed);
+  (TH1F*)h_spectrum_shift->At(0)->Draw("");
+  (TH1F*)h_spectrum_shift->At(1)->Draw("same");
+
+  h_spectrum_corr->GetXaxis()->SetRangeUser(0,800);
+  h_spectrum_corr->GetYaxis()->SetRangeUser(1,200);
+  h_spectrum_corr->Draw("same");
 
   c1 -> DrawClone();
   c1 -> cd();

@@ -1,26 +1,23 @@
 static const Int_t kNPMTs = 15;
 static const Int_t kMaxNHits = 200;
 static const Double_t kDelay = -671.25 - 77.267;
+static const Double_t kIntToPE = 0.07084;
 
 Int_t    pds_hits;
-Double_t pds_ratio;
+Int_t    pmt_hits[kNPMTs];
 Double_t pds_time[kMaxNHits];
+Double_t pmt_time[kNPMTs][kMaxNHits];
 Double_t pds_peak[kMaxNHits];
+Double_t pmt_peak[kNPMTs][kMaxNHits];
 Double_t pds_integral[kMaxNHits];
+Double_t pmt_integral[kNPMTs][kMaxNHits];
 Bool_t   pds_flag;
+Bool_t   pmt_flag[kNPMTs];
 Double_t pds_FWHM[kMaxNHits];
+Double_t pmt_FWHM[kNPMTs][kMaxNHits];
 Bool_t   inBeamWindow;
 Bool_t   isBeamTrigger;
 Double_t rf_time;
-
-Double_t Weight(Int_t pmt=-1, Int_t hit=0) {
-  if( !pds_flag ) return 0;
-  if( !inBeamWindow ) return 0;
-  //if( isBeamTrigger ) return 0;
-  //if( pds_peak[hit] > 5 ) return 0;
-
-  return 1.;
-}
 
 void tof_charge() {
   gROOT -> ProcessLine( ".X chainFiles.C" );
@@ -29,23 +26,33 @@ void tof_charge() {
   pdsEvTree->SetBranchStatus("*", kFALSE);
 
   pdsEvTree->SetBranchAddress("pds_hits",&pds_hits);
-  pdsEvTree->SetBranchAddress("pds_ratio",&pds_ratio);
+  pdsEvTree->SetBranchAddress("pmt_hits",pmt_hits);
   pdsEvTree->SetBranchAddress("pds_time",pds_time);
+  pdsEvTree->SetBranchAddress("pmt_time",pmt_time);
   pdsEvTree->SetBranchAddress("pds_peak",pds_peak);
+  pdsEvTree->SetBranchAddress("pmt_peak",pmt_peak);
   pdsEvTree->SetBranchAddress("pds_integral",pds_integral);
+  pdsEvTree->SetBranchAddress("pmt_integral",pmt_integral);
   pdsEvTree->SetBranchAddress("pds_flag",&pds_flag);
+  pdsEvTree->SetBranchAddress("pmt_flag",pmt_flag);
   pdsEvTree->SetBranchAddress("pds_FWHM",pds_FWHM);
+  pdsEvTree->SetBranchAddress("pmt_FWHM",pmt_FWHM);
   pdsEvTree->SetBranchAddress("inBeamWindow",&inBeamWindow);
   pdsEvTree->SetBranchAddress("isBeamTrigger",&isBeamTrigger);
   pdsEvTree->SetBranchAddress("rf_time",&rf_time);
 
   pdsEvTree->SetBranchStatus("pds_hits",kTRUE);
-  pdsEvTree->SetBranchStatus("pds_ratio",kTRUE);
+  pdsEvTree->SetBranchStatus("pmt_hits",kTRUE);
   pdsEvTree->SetBranchStatus("pds_time",kTRUE);
+  pdsEvTree->SetBranchStatus("pmt_time",kTRUE);
   pdsEvTree->SetBranchStatus("pds_peak",kTRUE);
+  pdsEvTree->SetBranchStatus("pmt_peak",kTRUE);
   pdsEvTree->SetBranchStatus("pds_integral",kTRUE);
+  pdsEvTree->SetBranchStatus("pmt_integral",kTRUE);
   pdsEvTree->SetBranchStatus("pds_flag",kTRUE);
+  pdsEvTree->SetBranchStatus("pmt_flag",kTRUE);
   pdsEvTree->SetBranchStatus("pds_FWHM",kTRUE);
+  pdsEvTree->SetBranchStatus("pmt_FWHM",kTRUE);
   pdsEvTree->SetBranchStatus("inBeamWindow",kTRUE);
   pdsEvTree->SetBranchStatus("isBeamTrigger",kTRUE);
   pdsEvTree->SetBranchStatus("rf_time",kTRUE);
@@ -55,20 +62,27 @@ void tof_charge() {
   Double_t ymax = 100;
   Double_t xmin = -1.7e3;
   Double_t xmax = 2.8e3;
+  Double_t hitmin = -3.2e3;
+  Double_t hitmax = 3.2e3;
+  Int_t nbinshit = (hitmax - hitmin);
   Int_t nbinsx = (xmax - xmin);
   Int_t nbinsy = 250;
   
-  TH2F* h_integral = new TH2F("h_integral",";tof (ns);integral;",nbinsx,xmin,xmax,nbinsy,ymin,ymax*20);
-  TH2F* h_peak = new TH2F("h_peak",";tof (ns);height",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
-  TH2F* h_hits = new TH2F("h_hits",";tof (ns);hits",nbinsx,xmin,xmax,nbinsy,ymin,ymax*2);
-  TH2F* h_FWHM = new TH2F("h_FWHM",";tof (ns);FWHM",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
-  TH1F* h_tof = new TH1F("h_tof",";tof (ns);hits",nbinsx,xmin,xmax);
-  TH1F* h_tof_prompt = new TH1F("h_tof_prompt",";tof (ns);hits",nbinsx,xmin,xmax);
-  TH1F* h_tof_filtered = new TH1F("h_tof_prompt",";tof (ns);hits",nbinsx,xmin,xmax);
-  TH2F* h_shape = new TH2F("h_shape",";sum;height",nbinsy,ymin,ymax*2,nbinsy,ymin,ymax);
-
-  TH2F* h_ratio = new TH2F("h_ratio",";tof (ns);integral_{prompt}/integral_{ev}",90,60,150,nbinsy,0,1);
+  TH2F* h_integral = new TH2F("h_integral",";tof (ns);event integral (pe);",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
+  TH2F* h_integral_hit = new TH2F("h_integral_hit",";dt (ns);hit integral (pe);",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax);
+  TH2F* h_peak = new TH2F("h_peak",";tof (ns);event height (pe);",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
+  TH2F* h_peak_hit = new TH2F("h_peak_hit",";dt (ns);hit height (pe)",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax);
+  TH2F* h_FWHM_hit = new TH2F("h_FWHM_hit",";dt (ns);hit FWHM (ns)",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax/2);
+  TH1F* h_tof_hit = new TH1F("h_tof",";dt (ns);hits",nbinsx,hitmin,hitmax);
   
+  TH1F* h_tof_prompt = new TH1F("h_tof_prompt",";tof (ns);events",nbinsx,xmin,xmax);
+  TH1F* h_tof_filt = new TH1F("h_tof_filt",";tof (ns);events",nbinsx,xmin,xmax);
+  
+  TH2F* h_shape = new TH2F("h_shape",";singlet integral (pe);triplet integral (pe)",nbinsy,ymin,ymax,nbinsy,ymin,ymax);
+  TH2F* h_ratio = new TH2F("h_ratio",";tof (ns);triplet/singlet",nbinsx,xmin,xmax,nbinsy/3,0,5);
+  
+  TH2F* h_integral_calib = new TH2F("h_integral_calib",";height (pe);integral (pe * ns)",nbinsy,ymin,ymax,nbinsy,ymin,ymax*20);
+
   // For removing gammas from spectrum
   TF1* fGaus = new TF1("fGaus","gaus",xmin,xmax);
   double height = 67.623; 
@@ -83,86 +97,63 @@ void tof_charge() {
   pdsEvTree->GetEntry(0);
   for( Int_t i = 0; pdsEvTree->GetEntry(i); i++ ) {
     // Status update
-    if( i%(pdsEvTree->GetEntriesFast()/10) == 0 ) {
-      cout << i << "of" << pdsEvTree->GetEntries() << endl;
-      cout << "peak " << pds_peak[0] << endl;
-      cout << "integral " << pds_integral[0] << endl;
-      cout << "rf " << rf_time << "\ttime " << pds_time[0] << endl;
-    }
-    // Loop over hits, if flagged
-    if( Weight() ) {
-      Double_t integral_sum = 0;
-      Double_t peak_sum = 0;
-      for( Int_t j = 0; j < pds_hits; j++) {
-	Double_t tof = pds_time[j] - rf_time -kDelay;
-	if( pds_time[j] >= pds_time[0] ) {
-	  integral_sum += pds_integral[j];
-	  peak_sum += pds_peak[j];
+    if( i%(pdsEvTree->GetEntriesFast()/10) == 0 )
+      cout << i << " of " << pdsEvTree->GetEntries() << endl;
+    // Cut events
+    if( inBeamWindow && pds_flag ) {
+      // Loop over PDS
+      Double_t TOF = pds_time[0] - rf_time - kDelay;
+      Double_t event_integral = 0;
+      Double_t triplet_integral = 0;
+      Double_t ev_ratio = 0;
+      Double_t TOF_hit = 0;
+      
+      for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
+	if( pmt_flag[pmt] ) {
+	  triplet_integral = 0;
+	  
+	  for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
+	    TOF_hit = pmt_time[pmt][j] - pmt_time[pmt][0];
+	    if( pmt_time[pmt][j] > pmt_time[pmt][0] )
+	      triplet_integral += pmt_integral[pmt][j] * kIntToPE;
+
+	    h_integral_hit->Fill(TOF_hit,pmt_integral[pmt][j] * kIntToPE);
+	    h_peak_hit->Fill(TOF_hit,pmt_peak[pmt][j]);
+	    h_tof_hit->Fill(TOF_hit);
+	    h_FWHM_hit->Fill(TOF_hit,pmt_FWHM[pmt][j]);
+
+	    h_integral_calib->Fill(pmt_peak[pmt][j],pmt_integral[pmt][j] * kIntToPE);
+	  }
+	  event_integral += triplet_integral + pmt_integral[pmt][0] * kIntToPE;
+
+	  h_shape->Fill(pmt_integral[pmt][0] * kIntToPE,triplet_integral);
+	  h_ratio->Fill(TOF,triplet_integral / (pmt_integral[pmt][0] * kIntToPE));
 	}
-	h_peak->Fill(tof,pds_peak[j]);
-	h_tof->Fill(tof);
-	h_FWHM->Fill(tof,pds_FWHM[j]);
       }
-      h_tof_prompt->Fill(pds_time[0] - rf_time - kDelay);
-      h_hits->Fill(pds_time[0] - rf_time - kDelay, peak_sum);
-      h_integral->Fill(pds_time[0] - rf_time - kDelay,integral_sum);
-      h_shape->Fill(integral_sum,pds_peak[0]);
-      h_ratio->Fill(pds_time[0] - rf_time - kDelay,pds_integral[0]/integral_sum);
+      
+      h_tof_prompt->Fill(TOF);
+      h_integral->Fill(TOF,event_integral);
+      h_peak->Fill(TOF,pds_peak[0]);
     }
   }
-  h_tof_filtered->Add(h_tof_prompt,h_gamma_tof,1,-1);
-  for( int i = 1; i < h_tof_filtered->GetNbinsX()+1; i++ )
-    if( h_tof_filtered->GetBinContent(i) < 0 )
-      h_tof_filtered->SetBinContent(i, 0);
+
+  // Remove gamma peak
+  h_tof_filt->Add(h_tof_prompt,h_gamma_tof,1,-1);
+  for( int i = 1; i < h_tof_filt->GetNbinsX()+1; i++ )
+    if( h_tof_filt->GetBinContent(i) < 0 )
+      h_tof_filt->SetBinContent(i, 0);
   
-  h_integral->Draw("colz");
-  c1->SetLogz();
-  c1->SaveAs("plots/tof-integral.C");
-  c1->DrawClone();
-  
-  c1->cd();
-  h_peak->Draw("colz");
-  c1->SaveAs("plots/tof-height.C");
-  c1->DrawClone();
+  // Save plots
+  h_integral->SaveAs("plots/tof-integral.C");
+  h_integral_hit->SaveAs("plots/tof-integral_hit.C");
+  h_peak->SaveAs("plots/tof-height.C");
+  h_peak_hit->SaveAs("plots/tof-height_hit.C");
+  h_FWHM_hit->SaveAs("plots/tof-FWHM_hit.C");
+  h_tof_hit->SaveAs("plots/tof-hit.C");
 
-  c1->cd();
-  h_FWHM->Draw("colz");
-  c1->SaveAs("plots/tof-FWHM.C");
-  c1->DrawClone();
+  h_tof_prompt->SaveAs("plots/tof-prompt.C");
+  h_tof_filt->SaveAs("plots/tof-prompt_filt.C");
 
-  c1->cd();
-  h_tof->Draw();
-  c1->cd()->SetLogy();
-  c1->SaveAs("plots/tof-count.C");
-  c1->DrawClone();
-
-  c1->cd();
-  h_tof_prompt->Draw();
-  fGaus->Draw("same");
-  c1->cd()->SetLogy();
-  c1->SaveAs("plots/tof-count-prompt.C");
-  c1->DrawClone();
-
-  c1->cd();
-  h_tof_filtered->Draw();
-  c1->cd()->SetLogy();
-  c1->SaveAs("plots/tof-count-filt.C");
-  c1->DrawClone();
-
-  c1->cd()->SetLogy(0);
-  h_shape->Draw("colz");
-  c1->SaveAs("plots/tof-shape.C");
-  c1->DrawClone();
-
-  c1->cd();
-  h_ratio->Draw("colz");
-  c1->SaveAs("plots/tof-ratio.C");
-  c1->DrawClone();
-
-  c1->cd();
-  h_hits->Draw("colz");
-  c1->SaveAs("plots/tof-hits.C");
-  c1->DrawClone();
-
-  c1->Close();
+  h_shape->SaveAs("plots/tof-shape.C");
+  h_ratio->SaveAs("plots/tof-ratio.C");
 }  
