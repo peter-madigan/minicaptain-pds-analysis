@@ -105,7 +105,7 @@ class PDSAnalysis
   Bool_t   fCalibration;
   Bool_t   fViewerMode;
   std::vector<TH1F*>  fMeanWaveform;
-  //std::vector< std::vector<TH1F*> > fCalibrationFFT;
+  std::vector< std::vector<TH1F*> > fCalibrationFFT;
 
   // functions
   PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root", Bool_t CalibrationMode=false, Bool_t ViewerMode=false);
@@ -114,7 +114,7 @@ class PDSAnalysis
   void InitializeADC_to_pe();
   TTree* ImportTree(TString fiName);
   TTree* SetupNewTree(TString foName);
-  //void   LoadCalibrationFFT();
+  void   LoadCalibrationFFT();
   
   void Loop();
   void DoEventAnalysis(Int_t start, Int_t end);
@@ -129,7 +129,7 @@ class PDSAnalysis
   TH1F* GetPMTSum(TString s="");
   TH1F* GetRFMean();
   Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
-  //TH1F* FFTFilter(TH1F* h, Int_t pmt);
+  TH1F* FFTFilter(TH1F* h, Int_t pmt);
 
   std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
   Double_t FindEvTime(TH1F* h, Int_t peak_time);
@@ -145,8 +145,8 @@ class PDSAnalysis
 
   void ConvertUnits(Int_t subevent);
 
-  //void FFT(CArray &x);
-  //void IFFT(CArray &x);
+  void FFT(CArray &x);
+  void IFFT(CArray &x);
 
   void PrintEvent(Int_t subevent);
   void DrawEvent(Int_t subevent);

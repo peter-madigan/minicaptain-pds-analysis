@@ -83,7 +83,7 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
 
   if( fCalibration )
     std::cout << "Running in calibration mode..." << std::endl;
-  //LoadCalibrationFFT();
+  LoadCalibrationFFT();
 
   runno = runNum;
   std::cout << "Analyzing run number " << runno << "..." << std::endl;
@@ -98,14 +98,15 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
   
   std::cout << "Analysis complete!" << std::endl;
   
-  /*  if( fCalibration ) {
+  if( fCalibration ) {
     TFile* fo = new TFile("./CalibrationFFT.root","RECREATE");
     for( UInt_t pmt = 0; pmt < kNPMTs+1; pmt++ ) {
       fCalibrationFFT[pmt][0]->Write();
       fCalibrationFFT[pmt][1]->Write();
+      fMeanWaveform[pmt]->Write();
     }
     fo->Close();
-    } */
+  }
 }
 
 PDSAnalysis::~PDSAnalysis()
@@ -187,7 +188,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   return tree;
 }
 
-/*void PDSAnalysis::LoadCalibrationFFT()
+void PDSAnalysis::LoadCalibrationFFT()
 {
   if( fCalibration ) {
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
@@ -216,7 +217,7 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
     complexHist.push_back((TH1F*)fi->Get("fCalibrationFFT_sum_im"));
     fCalibrationFFT.push_back(complexHist);
   }
-  }*/
+}
 
 void PDSAnalysis::Loop()
 {
@@ -278,15 +279,16 @@ void PDSAnalysis::Loop()
     }
   }
 
-  // Create deconvolution FFT
-  /* if( fCalibration )
+  // Create convolution FFT
+  if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs+1; pmt++ ) {
-      fMeanWaveform[pmt]->Scale(1./fPMTTree->GetEntries());
+      RemoveADCOffset(fMeanWaveform[pmt]);
+      //fMeanWaveform[pmt]->Scale(-1./fMeanWaveform[pmt]->GetMinimum());
       if( pmt < kNPMTs )
-	FFTFilter(fMeanWaveform[pmt], pmt);
+	fMeanWaveform[pmt] = FFTFilter(fMeanWaveform[pmt], pmt);
       else
-	FFTFilter(fMeanWaveform[pmt], -1);
-	} */
+	fMeanWaveform[pmt] = FFTFilter(fMeanWaveform[pmt], -1);
+    } 
 }
 
 void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
@@ -331,8 +333,8 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   // Create PMT histogram
   TH1F* hPMT = GetPMT(pmt);
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
-  /* if( !fCalibration )
-     FFTFilter(hPMT, pmt); */
+  if( !fCalibration )
+    FFTFilter(hPMT, pmt);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -359,13 +361,14 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
 
   // Flag if not noise
   pmt_flag[pmt] = IsPMTEvent(hPMT, subevent, pmt, peak_time);
+  if( fCalibration ) pmt_flag[pmt] = pmt_flag[pmt] && pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900;
 
   // Store waveform for calibration FFT
-  /* if( pmt_flag[pmt] && fCalibration )
-    if( fMeanWaveform.size()!= kNPMTs+1 )
+  if( fCalibration )
+    if( fMeanWaveform.size() != kNPMTs+1 )
       fMeanWaveform.push_back( (TH1F*)hPMT->Clone(Form("hMeanWaveform_%d",pmt)) );
-    else
-    fMeanWaveform[pmt]->Add(hPMT); */
+    else if( pmt_flag[pmt] && pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900 )
+      fMeanWaveform[pmt]->Add(hPMT);
   
   hPMT->Delete();
 }
@@ -374,8 +377,8 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   // Create PMT histogram        
   TH1F* hPMT = GetPMTSum();
   pds_offset = RemoveADCOffset(hPMT);
-  /* if( !fCalibration )
-     FFTFilter(hPMT, -1); */
+  if( !fCalibration )
+    FFTFilter(hPMT, -1);
 
   // Find peaks in histogram   
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
@@ -403,6 +406,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   
   // Flag if not noise 
   pds_flag = IsPDSEvent(hPMT, subevent, peak_time);
+  if( fCalibration ) pds_flag = pds_flag && pds_time[0] > 850 && pds_time[0] < 900;
 
   // Check beam
   TH1F* hRF = GetRFMean();
@@ -428,11 +432,11 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
 	pmt_dtime[ipmt][jpmt] = pmt_time[ipmt][0] - pmt_time[jpmt][0];
 
   // Store waveform for calibration FFT                                           
-  /* if( pds_flag && fCalibration )
+  if( fCalibration )
     if( fMeanWaveform.size() != kNPMTs+1 )
       fMeanWaveform.push_back( (TH1F*)hPMT->Clone("hMeanWaveform_sum") );
-    else
-    fMeanWaveform[kNPMTs]->Add(hPMT); */
+    else if( pds_flag && pds_time[0] > 850 && pds_time[0] < 900 )
+      fMeanWaveform[kNPMTs]->Add(hPMT);
 
   hPMT->Delete();
   hRF->Delete();
@@ -554,8 +558,12 @@ TH1F* PDSAnalysis::GetPMTSum(TString s)
       board = 1;
     UInt_t channel = pmt % 5;
     
+    
     for( UInt_t sample = 0; sample < fNSamples; sample++ ) {
-      h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
+      if( !fCalibration )
+	h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
+      else
+	h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
     }
   }
 
@@ -617,32 +625,36 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   return offset_min;
 }
 
-/* TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
+TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
 {
   Complex waveform[fNSamples];
-  for( Int_t i = 1; i <= (Int_t)fNSamples; i++ ) 
-    waveform[i-1] = h->GetBinContent(i);
+  for( Int_t i = 0; i < (Int_t)fNSamples; i++ ) 
+    waveform[i] = h->GetBinContent(i+1);
   
   CArray fft(waveform, fNSamples);
 
   FFT(fft);
   if( !fCalibration ) {
     // Deconvolution
-    if( pmt < 0 )
-      for( Int_t i = 0; i < (Int_t)fNSamples; i++ ) {
+    /* if( pmt < 0 )
+      for( Int_t i = 0; i < (Int_t)fNSamples/2-1; i++ ) {
 	Complex c(fCalibrationFFT[kNPMTs][0]->GetBinContent(i+1), fCalibrationFFT[kNPMTs][1]->GetBinContent(i+1));
-	fft[i] = fft[i]/c;
+	if( std::norm(c) != 0 )
+	  fft[i] = fft[i] / c;
       }
-    else
-      for( Int_t i = 0; i < (Int_t)fNSamples; i++ ) {
+    else if( false )
+      for( Int_t i = 0; i < (Int_t)fNSamples/2-1; i++ ) {
 	Complex c(fCalibrationFFT[pmt][0]->GetBinContent(i+1), fCalibrationFFT[pmt][1]->GetBinContent(i+1));
-	fft[i] = fft[i]/c;
-      }
+	if( std::norm(c) != 0 )
+	  fft[i] = fft[i] / c;
+	  } */
     // Band-pass filter
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
-      if( i > 150 )
+      if( i >= fNSamples/2-1 )
 	fft[i] = 0;
-
+      else if( i > 512 )
+	fft[i] = fft[i] / (Complex)(i-512);
+    
     IFFT(fft);
     
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )  {
@@ -650,6 +662,12 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
     }
     
   } else {
+    for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
+      if( i >= fNSamples/2-1 )
+        fft[i] = 0;
+      else if( i > 512 )
+        fft[i] = fft[i] / (Complex)(i-512);
+
     if( pmt < 0 )
       for( Int_t i = 0; i < (Int_t)fNSamples; i++ ) {
         fCalibrationFFT[kNPMTs][0]->SetBinContent(i+1, std::real(fft[i]));
@@ -660,10 +678,15 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
 	fCalibrationFFT[pmt][0]->SetBinContent(i+1, std::real(fft[i]));
 	fCalibrationFFT[pmt][1]->SetBinContent(i+1, std::imag(fft[i]));
       } 
+
+    IFFT(fft);
+
+    for( Int_t i = 0; i < (Int_t)fNSamples; i++ )  {
+      h->SetBinContent(i+1, std::real(fft[i]));
+    }
   }
   return h;
-
-  } */
+}
 
 std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt) 
 {
@@ -986,7 +1009,7 @@ void PDSAnalysis::ConvertUnits(Int_t subevent)
   }
 }
 
-/* void PDSAnalysis::FFT(CArray &x)
+void PDSAnalysis::FFT(CArray &x)
 {
   const size_t N = x.size();
   if( N <= 1 ) return;
@@ -1010,7 +1033,7 @@ void PDSAnalysis::IFFT(CArray &x)
   FFT(x);
   x = x.apply(std::conj);
   x /= x.size();
-  } */
+}
 
 void PDSAnalysis::PrintEvent(Int_t subevent)
 {
@@ -1062,8 +1085,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
   pmt_hists->Add(hSum);
-  //RemoveADCOffset(hSum);
-  //FFTFilter(hSum, -1);
+  RemoveADCOffset(hSum);
+  FFTFilter(hSum, -1);
   RemoveADCOffset(hSum,-50);
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
@@ -1167,7 +1190,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     TH1F* h = GetPMT(pmt);
     pmt_hists->Add(h);
     RemoveADCOffset(h);
-    //FFTFilter(h,pmt);
+    FFTFilter(h,pmt);
     RemoveADCOffset(h,pmt*20);
     h->GetXaxis()->SetRangeUser(xmin,xmax);
     h->GetYaxis()->SetRangeUser(ymin,ymax);
