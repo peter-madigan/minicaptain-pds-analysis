@@ -42,6 +42,8 @@ class PDSAnalysis
 
   static const Int_t kPeakSearchWindow_pre;
   static const Int_t kPeakSearchWindow_post;
+  static const Int_t kHitSearchWindow_pre;
+  static const Int_t kHitSearchWindow_post;
   static const Int_t kBeamSearchWindow_post;
   static const Int_t kBeamSearchWindow_pre;
 
@@ -121,7 +123,7 @@ class PDSAnalysis
   void DoPMTAnalysis(Int_t subevent, Int_t pmt);
   void DoPDSAnalysis(Int_t subevent);
   
-  std::vector<Int_t> CheckPeaks(TH1F* h, std::vector<Int_t> &peak_time);
+  std::vector<Int_t> CheckHits(TH1F* h, std::vector<Int_t> &peak_time);
   Bool_t IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time);
   Bool_t IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time);
 
