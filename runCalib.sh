@@ -18,6 +18,7 @@ for runno in "${runs[@]}"; do
     fi
 done
 
+echo "Waiting for queue..."
 progress=`qstat -u pmadigan`
 while [ "$progress" != "" ]; do
     sleep 1
