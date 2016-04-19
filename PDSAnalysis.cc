@@ -38,7 +38,7 @@ const Double_t PDSAnalysis::kWidthThreshold    = 6.0/4.0; // ticks
 const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
-const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400*2; // 1600ns Ar triplet lifetime
+const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400*2; // 2x1600ns Ar triplet lifetime
 const Int_t    PDSAnalysis::kBeamSearchWindow_post = 400;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 25;
 
@@ -660,7 +660,9 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
       if( i >= fNSamples/2-1 )
 	fft[i] = 0;
-      else if( i > 512 ) // 16ns
+      else if( i == 512 ) // lots of noise at this freq
+	fft[i] = 0;
+      else if( i > 512 ) // high freq filter
 	fft[i] = fft[i] / (Complex)(i-512);
     
     IFFT(fft);
@@ -704,7 +706,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = 0;
+    threshold = 1.0;
   else if( pmt < 0 )
     threshold = -kSumThreshold;
   else

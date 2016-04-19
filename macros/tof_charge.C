@@ -59,7 +59,7 @@ void tof_charge() {
 
   // Create plots
   Double_t ymin = 0;
-  Double_t ymax = 100;
+  Double_t ymax = 200;
   Double_t xmin = -1.7e3;
   Double_t xmax = 2.8e3;
   Double_t hitmin = -3.2e3;
@@ -103,7 +103,8 @@ void tof_charge() {
     if( inBeamWindow && pds_flag ) {
       // Loop over PDS
       Double_t TOF = pds_time[0] - rf_time - kDelay;
-      Double_t event_integral = 0;
+      Double_t event_singlet_integral = 0;
+      Double_t event_triplet_integral = 0;
       Double_t triplet_integral = 0;
       Double_t ev_ratio = 0;
       Double_t TOF_hit = 0;
@@ -119,20 +120,21 @@ void tof_charge() {
 
 	    h_integral_hit->Fill(TOF_hit,pmt_integral[pmt][j] * kIntToPE);
 	    h_peak_hit->Fill(TOF_hit,pmt_peak[pmt][j]);
-	    h_tof_hit->Fill(TOF_hit);
+	    if( pmt_peak[pmt][j] < 2 && pmt_time[pmt][j] > pmt_time[pmt][0]) 
+	      h_tof_hit->Fill(TOF_hit);
 	    h_FWHM_hit->Fill(TOF_hit,pmt_FWHM[pmt][j]);
 
 	    h_integral_calib->Fill(pmt_peak[pmt][j],pmt_integral[pmt][j] * kIntToPE);
 	  }
-	  event_integral += triplet_integral + pmt_integral[pmt][0] * kIntToPE;
-
-	  h_shape->Fill(pmt_integral[pmt][0] * kIntToPE,triplet_integral);
-	  h_ratio->Fill(TOF,triplet_integral / (pmt_integral[pmt][0] * kIntToPE));
+	  event_singlet_integral += pmt_integral[pmt][0] * kIntToPE;
+	  event_triplet_integral += triplet_integral;
 	}
       }
-      
+      h_shape->Fill(event_singlet_integral,event_triplet_integral);
+      h_ratio->Fill(TOF,event_triplet_integral/event_singlet_integral);
+
       h_tof_prompt->Fill(TOF);
-      h_integral->Fill(TOF,event_integral);
+      h_integral->Fill(TOF,event_singlet_integral+event_triplet_integral);
       h_peak->Fill(TOF,pds_peak[0]);
     }
   }
