@@ -336,7 +336,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   TH1F* hPMT = GetPMT(pmt);
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
   //if( !fCalibration )
-  //FFTFilter(hPMT, pmt);
+  FFTFilter(hPMT, pmt);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -382,7 +382,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   TH1F* hPMT = GetPMTSum();
   pds_offset = RemoveADCOffset(hPMT);
   //if( !fCalibration )
-  //FFTFilter(hPMT, -1);
+  FFTFilter(hPMT, -1);
 
   // Find peaks in histogram   
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
@@ -660,7 +660,7 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
       if( i >= fNSamples/2-1 )
 	fft[i] = 0;
-      else if( i > 512 )
+      else if( i > 512 ) // 16ns
 	fft[i] = fft[i] / (Complex)(i-512);
     
     IFFT(fft);
@@ -1093,8 +1093,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
   pmt_hists->Add(hSum);
-  //RemoveADCOffset(hSum);
-  //FFTFilter(hSum, -1);
+  RemoveADCOffset(hSum);
+  FFTFilter(hSum, -1);
   RemoveADCOffset(hSum,-50);
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
@@ -1197,8 +1197,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TH1F* h = GetPMT(pmt);
     pmt_hists->Add(h);
-    //RemoveADCOffset(h);
-    //FFTFilter(h,pmt);
+    RemoveADCOffset(h);
+    FFTFilter(h,pmt);
     RemoveADCOffset(h,pmt*20);
     h->GetXaxis()->SetRangeUser(xmin,xmax);
     h->GetYaxis()->SetRangeUser(ymin,ymax);
