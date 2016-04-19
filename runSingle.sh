@@ -8,8 +8,12 @@ else
     runno="$runnumber"
 fi
 
-datadir=/project/projectdirs/captain/data/2016/pmt/2016WNRRun2
-outdir=./data
+if [ "$datadir" == "" ]; then
+    datadir=/project/projectdirs/captain/data/2016/pmt/2016WNRRun2
+    outdir=./data
+else
+    outdir=./calib
+fi
 
 echo "Checking for run $runno..."
 if [ -d $datadir/run$runno ]; then

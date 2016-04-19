@@ -55,11 +55,11 @@ void pmt_calib() {
  
   for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TString name_int = Form("PMT%d_integral",pmt+1);
-    h_int->Add(new TH1F(name_int,name_int+";integral;count",100,-20,0));
+    h_int->Add(new TH1F(name_int,name_int+";integral;count",20,-20,0));
     ((TH1F*)h_int->At(pmt))->Sumw2();
 
     TString name_peak = Form("PMT%d_height",pmt+1);
-    h_peak->Add(new TH1F(name_peak,name_peak+";height;count",100,-20,0));
+    h_peak->Add(new TH1F(name_peak,name_peak+";height;count",20,-20,0));
     ((TH1F*)h_peak->At(pmt))->Sumw2();
 
     TString name_bl = Form("PMT%d_baseline",pmt+1);

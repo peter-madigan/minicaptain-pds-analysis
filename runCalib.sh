@@ -13,18 +13,16 @@ outdir=./calib
 for runno in "${runs[@]}"; do
     echo "Checking for run $runno..."
     if [ -d $datadir/run$runno ]; then
-	echo "Run found!"
-	i=0
-	mkdir -v $outdir/pdsTree$runno
-	for infile in `ls "$datadir/run$runno"`; do
-	    if [ -f "$infile" ] && [ -s "$infile" ] && [ "${infile: -5}" == ".root" ]; then
-		root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",true)"
-		let "i++"
-	    fi
-	done
+	echo "Run found! Submitting run $runno..."
+	qsub -v runnumber="$runno" -v datadir="$datadir" -l projectio=1 -j y -o "./logs" runSingle.sh
     fi
 done
 
+progress=`qstat -u pmadigan`
+while [ "$progress" != "" ]; do
+    sleep 1
+    progress=`qstat -u pmadigan`
+done
 root -q -b macros/pmt_calib.C
 
 # rate calibration
@@ -46,4 +44,4 @@ for runno in "${runs[@]}"; do
     fi
 done
 
-root macros/pmt_rate.C
+root -q -b macros/pmt_rate.C

@@ -341,7 +341,9 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
   peak_time = CheckPeaks(hPMT, peak_time);
-  pmt_hits[pmt] = peak_time.size();
+  if( peak_time.size() < kMaxNHits ) pmt_hits[pmt] = peak_time.size();
+  else                               pmt_hits[pmt] = kMaxNHits;
+
   if( peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
       pmt_ratio[pmt] = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
@@ -369,7 +371,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   //if( fCalibration )
   if( fMeanWaveform.size() != kNPMTs+1 )
     fMeanWaveform.push_back( (TH1F*)hPMT->Clone(Form("hMeanWaveform_%d",pmt)) );
-  else if( pmt_flag[pmt] && pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900 )
+  else if( pmt_flag[pmt] )//&& pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900 )
     fMeanWaveform[pmt]->Add(hPMT);
   
   hPMT->Delete();
@@ -437,7 +439,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   //if( fCalibration )
   if( fMeanWaveform.size() != kNPMTs+1 )
     fMeanWaveform.push_back( (TH1F*)hPMT->Clone("hMeanWaveform_sum") );
-  else if( pds_flag && pds_time[0] > 850 && pds_time[0] < 900 )
+  else if( pds_flag )//&& pds_time[0] > 850 && pds_time[0] < 900 )
     fMeanWaveform[kNPMTs]->Add(hPMT);
 
   hPMT->Delete();
@@ -499,6 +501,10 @@ std::vector<Int_t> PDSAnalysis::CheckPeaks(TH1F* h, std::vector<Int_t> &peak_tim
     new_vector.insert(new_vector.begin(), new_vector[maxi]);
     new_vector.erase(new_vector.begin()+maxi+1);
   }
+
+  // Check if oversize
+  if( new_vector.size() > kMaxNHits )
+    std::cout << "WARNING! Hits greater than kMaxNHits!" << std::endl;
 
   return new_vector;
 }
@@ -698,7 +704,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = 1;
+    threshold = 0;
   else if( pmt < 0 )
     threshold = -kSumThreshold;
   else
