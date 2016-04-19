@@ -20,7 +20,7 @@ class PDSAnalysis
 {
  public:
   // Analysis constants
-  static const UInt_t kMaxNHits    = 500;
+  static const UInt_t kMaxNHits    = 250;
   static const UInt_t kMaxNEvents  = 100;
   static const size_t kMaxNSamples = 2048; 
   static const size_t kNBoards     = 3;

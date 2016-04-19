@@ -10,6 +10,8 @@ cd /global/homes/p/pmadigan/work/pds_analysis/pds_analysisCode
 datadir=/project/projectdirs/captain/data/2016/pmt/Cosmic
 outdir=./calib
 
+root -q -b PDSAnalysis.cc+
+
 for runno in "${runs[@]}"; do
     echo "Checking for run $runno..."
     if [ -d $datadir/run$runno ]; then
@@ -21,7 +23,8 @@ done
 echo "Waiting for queue..."
 progress=`qstat -u pmadigan`
 while [ "$progress" != "" ]; do
-    sleep 1
+    qstat -u pmadigan
+    sleep 10
     progress=`qstat -u pmadigan`
 done
 root -q -b macros/pmt_calib.C

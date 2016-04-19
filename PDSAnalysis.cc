@@ -287,10 +287,20 @@ void PDSAnalysis::Loop()
       RemoveADCOffset(fMeanWaveform[pmt]);
       //fMeanWaveform[pmt]->Scale(-1./fMeanWaveform[pmt]->GetMinimum());
       if( pmt < kNPMTs )
-	fMeanWaveform[pmt] = FFTFilter(fMeanWaveform[pmt], pmt);
+	FFTFilter(fMeanWaveform[pmt], pmt);
       else
-	fMeanWaveform[pmt] = FFTFilter(fMeanWaveform[pmt], -1);
+	FFTFilter(fMeanWaveform[pmt], -1);
     } 
+  
+  // Draw mean
+  if( fViewerMode && !fCanvas->IsBatch() ) {
+    fCanvas->cd();
+    fMeanWaveform[kNPMTs]->Draw("l");
+    fCanvas->Update();
+    std::cout << "Press any key to continue..." << std::endl;
+    char* s = new char[1];
+    gets(s);
+  }
 }
 
 void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
@@ -672,10 +682,13 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
     }
     
   } else {
+    // Band-pass filter
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
       if( i >= fNSamples/2-1 )
         fft[i] = 0;
-      else if( i > 512 )
+      else if( i == 512 ) // lots of noise at this freq            
+        fft[i] = 0;
+      else if( i > 512 ) // high freq filter
         fft[i] = fft[i] / (Complex)(i-512);
 
     if( pmt < 0 )
