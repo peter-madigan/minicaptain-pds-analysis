@@ -95,7 +95,9 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
   Loop();
   
   fAnalysisTree->Write();
-  
+  for( UInt_t pmt = 0; pmt < kNPMTs+1; pmt++ )
+    fMeanWaveform[pmt]->Write();
+
   std::cout << "Analysis complete!" << std::endl;
   
   if( fCalibration ) {
@@ -333,8 +335,8 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   // Create PMT histogram
   TH1F* hPMT = GetPMT(pmt);
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
-  if( !fCalibration )
-    FFTFilter(hPMT, pmt);
+  //if( !fCalibration )
+  //FFTFilter(hPMT, pmt);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -364,11 +366,11 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   if( fCalibration ) pmt_flag[pmt] = pmt_flag[pmt] && pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900;
 
   // Store waveform for calibration FFT
-  if( fCalibration )
-    if( fMeanWaveform.size() != kNPMTs+1 )
-      fMeanWaveform.push_back( (TH1F*)hPMT->Clone(Form("hMeanWaveform_%d",pmt)) );
-    else if( pmt_flag[pmt] && pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900 )
-      fMeanWaveform[pmt]->Add(hPMT);
+  //if( fCalibration )
+  if( fMeanWaveform.size() != kNPMTs+1 )
+    fMeanWaveform.push_back( (TH1F*)hPMT->Clone(Form("hMeanWaveform_%d",pmt)) );
+  else if( pmt_flag[pmt] && pmt_time[pmt][0] > 850 && pmt_time[pmt][0] < 900 )
+    fMeanWaveform[pmt]->Add(hPMT);
   
   hPMT->Delete();
 }
@@ -377,8 +379,8 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   // Create PMT histogram        
   TH1F* hPMT = GetPMTSum();
   pds_offset = RemoveADCOffset(hPMT);
-  if( !fCalibration )
-    FFTFilter(hPMT, -1);
+  //if( !fCalibration )
+  //FFTFilter(hPMT, -1);
 
   // Find peaks in histogram   
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
@@ -432,11 +434,11 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
 	pmt_dtime[ipmt][jpmt] = pmt_time[ipmt][0] - pmt_time[jpmt][0];
 
   // Store waveform for calibration FFT                                           
-  if( fCalibration )
-    if( fMeanWaveform.size() != kNPMTs+1 )
-      fMeanWaveform.push_back( (TH1F*)hPMT->Clone("hMeanWaveform_sum") );
-    else if( pds_flag && pds_time[0] > 850 && pds_time[0] < 900 )
-      fMeanWaveform[kNPMTs]->Add(hPMT);
+  //if( fCalibration )
+  if( fMeanWaveform.size() != kNPMTs+1 )
+    fMeanWaveform.push_back( (TH1F*)hPMT->Clone("hMeanWaveform_sum") );
+  else if( pds_flag && pds_time[0] > 850 && pds_time[0] < 900 )
+    fMeanWaveform[kNPMTs]->Add(hPMT);
 
   hPMT->Delete();
   hRF->Delete();
@@ -696,7 +698,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = -3;
+    threshold = 1;
   else if( pmt < 0 )
     threshold = -kSumThreshold;
   else
@@ -1085,8 +1087,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
   pmt_hists->Add(hSum);
-  RemoveADCOffset(hSum);
-  FFTFilter(hSum, -1);
+  //RemoveADCOffset(hSum);
+  //FFTFilter(hSum, -1);
   RemoveADCOffset(hSum,-50);
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
@@ -1189,8 +1191,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TH1F* h = GetPMT(pmt);
     pmt_hists->Add(h);
-    RemoveADCOffset(h);
-    FFTFilter(h,pmt);
+    //RemoveADCOffset(h);
+    //FFTFilter(h,pmt);
     RemoveADCOffset(h,pmt*20);
     h->GetXaxis()->SetRangeUser(xmin,xmax);
     h->GetYaxis()->SetRangeUser(ymin,ymax);

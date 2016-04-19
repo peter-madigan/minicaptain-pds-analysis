@@ -9,6 +9,8 @@ void pmt_calib() {
   gStyle->SetStatW(0.15);
   gStyle->SetStatH(0.3);
 
+  TCanvas* c_int = new TCanvas("c_int","PMT calib (integral)",1200,800);
+  c_int->Divide(4,4);
   TCanvas* c_peak = new TCanvas("c_peak","PMT calib (peak)",1200,800);
   c_peak->Divide(4,4);
   TCanvas* c_bl = new TCanvas("c_bl","PMT calib (baseline)",1200,800);
@@ -25,6 +27,7 @@ void pmt_calib() {
 
   Int_t    pmt_hits[kNPMTs];
   Double_t pmt_peak[kNPMTs][kMaxNHits];
+  Double_t pmt_integral[kNPMTs][kMaxNHits];
   Double_t pmt_time[kNPMTs][kMaxNHits];
   Double_t pmt_ratio[kNPMTs];
   Bool_t   pmt_flag[kNPMTs];
@@ -32,6 +35,7 @@ void pmt_calib() {
   ch->SetBranchStatus("pmt_dtime",kFALSE);
   ch->SetBranchAddress("pmt_hits",pmt_hits);
   ch->SetBranchAddress("pmt_peak",pmt_peak);
+  ch->SetBranchAddress("pmt_integral",pmt_integral);
   ch->SetBranchAddress("pmt_time",pmt_time);
   ch->SetBranchAddress("pmt_ratio",pmt_ratio);
   ch->SetBranchAddress("pmt_flag",pmt_flag);
@@ -41,6 +45,7 @@ void pmt_calib() {
   TH1F* h_noise    = new TH1F("hNoise",";ratio;count",250,-1,1);
   TH1F* h_notNoise = new TH1F("hNotNoise",";ratio;count",250,-1,1);
   TH1F* h_occu     = new TH1F("h_occu","occupancy;# of pmts;counts",15,0,15);
+  TObjArray* h_int  = new TObjArray();
   TObjArray* h_peak = new TObjArray();
   TObjArray* h_bl   = new TObjArray();
 
@@ -49,6 +54,10 @@ void pmt_calib() {
   h_notNoise->SetLineColor(kRed+2);
  
   for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
+    TString name_int = Form("PMT%d_integral",pmt+1);
+    h_int->Add(new TH1F(name_int,name_int+";integral;count",200,-50,0));
+    ((TH1F*)h_int->At(pmt))->Sumw2();
+
     TString name_peak = Form("PMT%d_height",pmt+1);
     h_peak->Add(new TH1F(name_peak,name_peak+";height;count",20,-20,0));
     ((TH1F*)h_peak->At(pmt))->Sumw2();
@@ -58,9 +67,11 @@ void pmt_calib() {
     ((TH1F*)h_bl->At(pmt))->Sumw2();
   }
   
-  TF1* gaus = new TF1("gaussian","gaus",0,20);
+  TF1* gaus = new TF1("gaussian","gaus",-1e3,1e3);
   ch->GetEntry(0);
   for( Int_t i = 0; ch->GetEntry(i); i++ ) {
+    if( i%(ch->GetEntries()/10) == 0 ) cout << i << " of " << ch->GetEntriesFast() << endl;
+    
     Int_t occu = 0;
     for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
       h_all->Fill(pmt_ratio[pmt]);
@@ -69,8 +80,9 @@ void pmt_calib() {
       
       if( pmt_flag[pmt] ) {
 	for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
-	  if( TMath::Abs(pmt_time[pmt][hit] - 950*4) < 50 ) {
-	    ((TH1F*)h_peak->At(pmt))->Fill(pmt_peak[pmt][0]);
+	  if( TMath::Abs(pmt_time[pmt][hit] - 900*4) < 200 ) {
+	    ((TH1F*)h_peak->At(pmt))->Fill(pmt_peak[pmt][hit]);
+	    ((TH1F*)h_int->At(pmt))->Fill(pmt_integral[pmt][hit]);
 	    occu++;
 	  }
 	}
@@ -86,11 +98,11 @@ void pmt_calib() {
     Double_t low_edge = -11;
     Double_t high_edge = -5;
     gaus -> SetRange(low_edge, high_edge);
-    gaus -> SetParLimits(1, -100, 100);
 
     c_peak->cd(1+pmt)->SetLogy();
     std::cout << std::endl;
     std::cout << "vvv\t" << "Fit results for " << pmt+1 << "\tvvv" << std::endl;
+    std::cout << "~~~\t" << "Height #" << pmt+1 << "\t~~~" << std::endl;
     ((TH1F*)h_peak->At(pmt))->Fit("gaussian","r");
     ((TH1F*)h_peak->At(pmt))->Draw("e");
 
@@ -98,19 +110,29 @@ void pmt_calib() {
     Double_t n = 0;
     for( Double_t ADC = low_edge; ADC < high_edge+1; ADC++ ) {
       TH1F* h = ((TH1F*)h_peak->At(pmt));
-      mean += ADC*h->GetBinContent(h->FindBin(ADC));
+      mean += ADC * h->GetBinContent(h->FindBin(ADC));
       n += h->GetBinContent(h->FindBin(ADC));
     }
     mean = mean/n;
     std::cout << "Mean across (" << low_edge << ", " << high_edge << "):\n"
 	      << mean << std::endl;
 
-    // baseline fit                                                               
-    Double_t low_edge =  3880;
-    Double_t high_edge = 3920;
+    // integral fit
+    std::cout << "~~~\t" << "Integral #" << pmt+1 << "\t~~~" << std::endl;
+    low_edge =  -50;
+    high_edge = -10;
     gaus -> SetRange(low_edge, high_edge);
-    gaus -> SetParLimits(1, 3880, 3920);
-    
+
+    c_int->cd(1+pmt)->SetLogy();
+    ((TH1F*)h_int->At(pmt))->Fit("gaussian","r");
+    ((TH1F*)h_int->At(pmt))->Draw("e");
+
+    // baseline fit                
+    std::cout << "~~~\t" << "Baseline #" << pmt+1 << "\t~~~" << std::endl;
+    low_edge =  3880;
+    high_edge = 3920;
+    gaus -> SetRange(low_edge, high_edge);
+        
     c_bl->cd(1+pmt)->SetLogy();
     ((TH1F*)h_bl->At(pmt))->Fit("gaussian","r");
     ((TH1F*)h_bl->At(pmt))->Draw("e");
@@ -126,10 +148,12 @@ void pmt_calib() {
   h_noise -> Draw("ep same");
   h_notNoise -> Draw("ep same");
 
+  c_int -> Update();
   c_noise -> Update();
   c_peak -> Update();
   c_bl -> Update();
 
+  c_int  -> SaveAs("plots/pmt_calib-integral.C");
   c_peak -> SaveAs("plots/pmt_calib-peak.C");
   c_bl   -> SaveAs("plots/pmt_calib-baseline.C");
   c_noise-> SaveAs("plots/pmt_calib-noise.C");
