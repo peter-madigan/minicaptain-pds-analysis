@@ -62,24 +62,26 @@ void tof_charge() {
   Double_t ymax = 200;
   Double_t xmin = -1.7e3;
   Double_t xmax = 2.8e3;
-  Double_t hitmin = -3.2e3;
+  Double_t hitmin = 0;
   Double_t hitmax = 3.2e3;
   Int_t nbinshit = (hitmax - hitmin);
-  Int_t nbinsx = (xmax - xmin);
-  Int_t nbinsy = 250;
+  Int_t nbinsx = (xmax - xmin)*4;
+  Int_t nbinsy = (ymax-ymin);
   
   TH2F* h_integral = new TH2F("h_integral",";tof (ns);event integral (pe);",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
   TH2F* h_integral_hit = new TH2F("h_integral_hit",";dt (ns);hit integral (pe);",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax);
   TH2F* h_peak = new TH2F("h_peak",";tof (ns);event height (pe);",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
   TH2F* h_peak_hit = new TH2F("h_peak_hit",";dt (ns);hit height (pe)",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax);
   TH2F* h_FWHM_hit = new TH2F("h_FWHM_hit",";dt (ns);hit FWHM (ns)",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax/2);
-  TH1F* h_tof_hit = new TH1F("h_tof",";dt (ns);hits",nbinsx,hitmin,hitmax);
+  TH1F* h_tof_hit = new TH1F("h_tof",";dt (ns);hits",nbinshit,hitmin,hitmax);
+  
+  //TH2F* h_tof_tof = new TH2F("h_tof_tof",";tof (ns);dt (ns)",nbinsx,xmin,xmax,nbinshit,hitmin,hitmax);
   
   TH1F* h_tof_prompt = new TH1F("h_tof_prompt",";tof (ns);events",nbinsx,xmin,xmax);
   TH1F* h_tof_filt = new TH1F("h_tof_filt",";tof (ns);events",nbinsx,xmin,xmax);
   
   TH2F* h_shape = new TH2F("h_shape",";singlet integral (pe);triplet integral (pe)",nbinsy,ymin,ymax,nbinsy,ymin,ymax);
-  TH2F* h_ratio = new TH2F("h_ratio",";tof (ns);triplet/singlet",nbinsx,xmin,xmax,nbinsy/3,0,5);
+  TH2F* h_ratio = new TH2F("h_ratio",";tof (ns);log( triplet / singlet )",nbinsx,xmin,xmax,nbinsy,-8,8);
   
   TH2F* h_integral_calib = new TH2F("h_integral_calib",";height (pe);integral (pe * ns)",nbinsy,ymin,ymax,nbinsy,ymin,ymax*20);
 
@@ -120,18 +122,25 @@ void tof_charge() {
 
 	    h_integral_hit->Fill(TOF_hit,pmt_integral[pmt][j] * kIntToPE);
 	    h_peak_hit->Fill(TOF_hit,pmt_peak[pmt][j]);
-	    if( pmt_peak[pmt][j] < 2 && pmt_time[pmt][j] > pmt_time[pmt][0]) 
-	      h_tof_hit->Fill(TOF_hit);
 	    h_FWHM_hit->Fill(TOF_hit,pmt_FWHM[pmt][j]);
-
-	    h_integral_calib->Fill(pmt_peak[pmt][j],pmt_integral[pmt][j] * kIntToPE);
+	    
+	    if( pmt_time[pmt][j] > pmt_time[pmt][0] &&
+		(pmt_peak[pmt][0] > 5 &&
+		 TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
+	      h_tof_hit->Fill(TOF_hit);
+	    //if( pmt_time[pmt][j] > pmt_time[pmt][0] &&
+	    //!(pmt_peak[pmt][0] > 5 &&
+	    //TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
+	    //h_tof_tof->Fill(TOF,TOF_hit);
+	    
+	    h_integral_calib->Fill(pmt_peak[pmt][j],pmt_integral[pmt][j]);
 	  }
 	  event_singlet_integral += pmt_integral[pmt][0] * kIntToPE;
 	  event_triplet_integral += triplet_integral;
 	}
       }
       h_shape->Fill(event_singlet_integral,event_triplet_integral);
-      h_ratio->Fill(TOF,event_triplet_integral/event_singlet_integral);
+      h_ratio->Fill(TOF,TMath::Log(event_triplet_integral/event_singlet_integral));
 
       h_tof_prompt->Fill(TOF);
       h_integral->Fill(TOF,event_singlet_integral+event_triplet_integral);
@@ -158,4 +167,7 @@ void tof_charge() {
 
   h_shape->SaveAs("plots/tof-shape.C");
   h_ratio->SaveAs("plots/tof-ratio.C");
+
+  // Draw plot(s)
+  h_ratio->Draw("colz");
 }  
