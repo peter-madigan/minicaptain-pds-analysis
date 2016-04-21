@@ -75,8 +75,6 @@ void tof_charge() {
   TH2F* h_FWHM_hit = new TH2F("h_FWHM_hit",";dt (ns);hit FWHM (ns)",nbinshit,hitmin,hitmax,nbinsy,ymin,ymax/2);
   TH1F* h_tof_hit = new TH1F("h_tof",";dt (ns);hits",nbinshit,hitmin,hitmax);
   
-  //TH2F* h_tof_tof = new TH2F("h_tof_tof",";tof (ns);dt (ns)",nbinsx,xmin,xmax,nbinshit,hitmin,hitmax);
-  
   TH1F* h_tof_prompt = new TH1F("h_tof_prompt",";tof (ns);events",nbinsx,xmin,xmax);
   TH1F* h_tof_filt = new TH1F("h_tof_filt",";tof (ns);events",nbinsx,xmin,xmax);
   
@@ -128,10 +126,6 @@ void tof_charge() {
 		(pmt_peak[pmt][0] > 5 &&
 		 TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
 	      h_tof_hit->Fill(TOF_hit);
-	    //if( pmt_time[pmt][j] > pmt_time[pmt][0] &&
-	    //!(pmt_peak[pmt][0] > 5 &&
-	    //TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
-	    //h_tof_tof->Fill(TOF,TOF_hit);
 	    
 	    h_integral_calib->Fill(pmt_peak[pmt][j],pmt_integral[pmt][j]);
 	  }

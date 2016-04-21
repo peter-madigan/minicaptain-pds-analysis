@@ -40,7 +40,7 @@ const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; 
 const Int_t    PDSAnalysis::kHitSearchWindow_pre   = 250;
-const Int_t    PDSAnalysis::kHitSearchWindow_post  = 400*2;
+const Int_t    PDSAnalysis::kHitSearchWindow_post  = 800;
 const Int_t    PDSAnalysis::kBeamSearchWindow_post = 400;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 25;
 
@@ -349,6 +349,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, pmt);
+  //MedianFilter(hPMT);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -394,6 +395,7 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   pds_offset = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, -1);
+  //MedianFilter(hPMT);
 
   // Find peaks in histogram   
   std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
@@ -632,6 +634,26 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   //  std::cout << "start" << start << "\tend" << end << std::endl;
   //  std::cout << "Minimum std. dev. for offset: " << stddev_min << std::endl;
   return offset_min;
+}
+
+TH1F* PDSAnalysis::MedianFilter(TH1F* h)
+{
+  // Refills histogram with median of every 3 values
+  std::vector<Double_t> values(3,0.0);
+  TH1F* hTemp = (TH1F*)h->Clone("hTemp");
+  for( UInt_t i = 1; i < h->GetNbinsX()+1; i++ ) {
+    if( i == 1 || i == h->GetNbinsX() )
+      continue;
+    else
+      for( UInt_t j = 0; j < 3; j++ )
+        values[j] = hTemp->GetBinContent(i+j-1);
+    
+    std::sort( values.begin(), values.end() );
+
+    h->SetBinContent(i, values[1]);
+  }
+  hTemp->Delete();
+  return h;
 }
 
 TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
@@ -1101,8 +1123,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   TObjArray* pmt_hists = new TObjArray();
   TObjArray* pmt_lines = new TObjArray();
 
-  Double_t xmin = kTrigger - kPeakSearchWindow_pre;
-  Double_t xmax = kTrigger + kPeakSearchWindow_post;
+  Double_t xmin = 0;
+  Double_t xmax = fNSamples;
   
   Double_t ymin = -150;
   Double_t ymax = +300;
@@ -1112,7 +1134,10 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   pmt_hists->Add(hSum);
   RemoveADCOffset(hSum);
   //FFTFilter(hSum, -1);
+  //MedianFilter(hSum);
   RemoveADCOffset(hSum,-50);
+  xmin = 0;
+  xmax = fNSamples;
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
   hSum->SetTitle(Form("PDS%d-TPC%d-%d",pds_evno,tpc_evno,subevent));
@@ -1135,7 +1160,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     peak_time = CheckHits(hSum, peak_time);
     hSum->Scale(3.);
     RemoveADCOffset(hSum,-50);
-    hSum->GetXaxis()->SetRangeUser(xmin,xmax);
+    xmin = peak_time[0] - kHitSearchWindow_pre;
+    xmax = peak_time[0] + kHitSearchWindow_post;
     hSum->GetYaxis()->SetRangeUser(ymin,ymax);
 
     Int_t n = peak_time.size();
@@ -1182,6 +1208,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   pmt_hists->Add(hRF);
   hRF->Scale(1./15);
   RemoveADCOffset(hRF,-25);
+  xmin = 0;
+  xmax = fNSamples;
   hRF->GetXaxis()->SetRangeUser(xmin,xmax);
   hRF->GetYaxis()->SetRangeUser(ymin,ymax);
   if( !inBeamWindow )
@@ -1208,15 +1236,16 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     l_time->Draw("same");
   }
 
-  xmin = kTrigger - kPeakSearchWindow_pre;
-  xmax = kTrigger + kPeakSearchWindow_post;
   // Draw PMTs
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TH1F* h = GetPMT(pmt);
     pmt_hists->Add(h);
     RemoveADCOffset(h);
     //FFTFilter(h,pmt);
+    //MedianFilter(h);
     RemoveADCOffset(h,pmt*20);
+    xmin = 0;
+    xmax = fNSamples;
     h->GetXaxis()->SetRangeUser(xmin,xmax);
     h->GetYaxis()->SetRangeUser(ymin,ymax);
     if( !pmt_flag[pmt] )
@@ -1231,7 +1260,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
       std::vector<Int_t> peak_time = FindPeaks(h, pmt);
       peak_time = CheckHits(h, peak_time);
       RemoveADCOffset(h,pmt*20);
-      h->GetXaxis()->SetRangeUser(xmin,xmax);
+      xmin = peak_time[0] - kHitSearchWindow_pre;
+      xmax = peak_time[0] + kHitSearchWindow_post;
       h->GetYaxis()->SetRangeUser(ymin,ymax);
 
       Int_t n = peak_time.size();
@@ -1248,7 +1278,6 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
       g_peak->SetMarkerColor(kRed);
       g_peak->SetMarkerSize(0.5);
       g_peak->Draw("same p");
-
 
       TLine* l_threshold1 =new TLine(xmin, kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
       TLine* l_threshold2 = new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
@@ -1275,6 +1304,40 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
     }    
   }
 
+  // FFT
+  TCanvas* c = new TCanvas();
+  Complex waveform[fNSamples];
+  RemoveADCOffset(hSum);
+  TH1F* h_re = new TH1F("FFT_re","FFT;freq (Hz);Amp.",fNSamples,-kSampleRate/2,kSampleRate/2);
+  TH1F* h_im = new TH1F("FFT_im","FFT;freq (Hz);Amp.",fNSamples,-kSampleRate/2,kSampleRate/2);
+  TH1F* h_abs = new TH1F("FFT","FFT;freq (Hz);Amp.",fNSamples,-kSampleRate/2,kSampleRate/2);
+  h_im->SetLineColor(kRed+2);
+  h_abs->SetLineColor(kBlack);
+  pmt_hists->Add(h_re);
+  pmt_hists->Add(h_im);
+  pmt_hists->Add(h_abs);
+  for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
+    waveform[i] = hSum->GetBinContent(i+1);
+  CArray fft(waveform, fNSamples);
+  FFT(fft);
+  for( Int_t i = 0; i < (Int_t)fNSamples/2; i++ ) {
+    h_re->SetBinContent(i+1,std::real(fft[i+fNSamples/2]));
+    h_im->SetBinContent(i+1,std::imag(fft[i+fNSamples/2]));
+    h_abs->SetBinContent(i+1,std::abs(fft[i+fNSamples/2]));
+  }
+  for( Int_t i = (Int_t)fNSamples/2;  i < (Int_t)fNSamples; i++ ) {
+    h_re->SetBinContent(i+1,std::real(fft[i-fNSamples/2]));
+    h_im->SetBinContent(i+1,std::imag(fft[i-fNSamples/2]));
+    h_abs->SetBinContent(i+1,std::abs(fft[i-fNSamples/2]));
+  }
+
+  c->cd();
+  h_abs->Draw("l");
+  h_re->Draw("l same");
+  h_im->Draw("l same");
+  c->Update();
+  RemoveADCOffset(hSum,-50);
+
   fCanvas->Update();
 
   if( !fCanvas->IsBatch() ) {
@@ -1285,4 +1348,5 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
   pmt_hists->Delete();
   pmt_lines->Delete();
+  c->Close();
 }

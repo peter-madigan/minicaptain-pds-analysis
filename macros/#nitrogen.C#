@@ -1,0 +1,20 @@
+static const Int_t kNPMTs = 15;
+static const Int_t kMaxNHits = 200;
+static const Double_t kDelay = -671.25 - 77.267;
+static const Double_t kIntToPE = 0.07084;
+
+Int_t    pds_hits;
+Int_t    pmt_hits[kNPMTs];
+Double_t pds_time[kMaxNHits];
+Double_t pmt_time[kNPMTs][kMaxNHits];
+Double_t pds_peak[kMaxNHits];
+Double_t pmt_peak[kNPMTs][kMaxNHits];
+Double_t pds_integral[kMaxNHits];
+Double_t pmt_integral[kNPMTs][kMaxNHits];
+Bool_t   pds_flag;
+Bool_t   pmt_flag[kNPMTs];
+Double_t pds_FWHM[kMaxNHits];
+Double_t pmt_FWHM[kNPMTs][kMaxNHits];
+Bool_t   inBeamWindow;
+Bool_t   isBeamTrigger;
+Double_t rf_time;

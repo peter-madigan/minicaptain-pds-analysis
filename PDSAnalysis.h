@@ -131,6 +131,7 @@ class PDSAnalysis
   TH1F* GetPMTSum(TString s="");
   TH1F* GetRFMean();
   Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
+  TH1F* MedianFilter(TH1F* h);
   TH1F* FFTFilter(TH1F* h, Int_t pmt);
 
   std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
