@@ -1,0 +1,202 @@
+#include  <vector>
+
+static const Int_t kNPMTs = 15;
+static const Int_t kMaxNHits = 200;
+static const Double_t kDelay = -671.25 - 77.267;
+static const Double_t kIntToPE = 0.07084;
+
+UShort_t gps_yr, gps_d;
+UInt_t   gps_s,  gps_ns;
+Int_t    pds_hits;
+Int_t    pmt_hits[kNPMTs];
+Double_t pds_time[kMaxNHits];
+Double_t pmt_time[kNPMTs][kMaxNHits];
+Double_t pds_peak[kMaxNHits];
+Double_t pmt_peak[kNPMTs][kMaxNHits];
+Double_t pds_integral[kMaxNHits];
+Double_t pmt_integral[kNPMTs][kMaxNHits];
+Bool_t   pds_flag;
+Bool_t   pmt_flag[kNPMTs];
+Double_t pds_FWHM[kMaxNHits];
+Double_t pmt_FWHM[kNPMTs][kMaxNHits];
+Bool_t   inBeamWindow;
+Bool_t   isBeamTrigger;
+Double_t rf_time;
+
+gStyle->SetStatX(0.9);
+gStyle->SetStatY(0.9);
+gStyle->SetOptFit(1111);
+gStyle->SetOptStat(0);
+
+void nitrogen() {
+  gStyle->SetStatX(0.9);
+  gStyle->SetStatY(0.9);
+  gStyle->SetOptFit(1111);
+  gStyle->SetOptStat(0);
+  
+  // Set up chains for runs
+  static const Int_t nch = 10;
+  static const Int_t nrun = 10;
+  TObjArray* ch = new TObjArray();
+  for( Int_t ich = 0; ich < nch; ich++ )
+    ch->Add(new TChain("pdsEvTree","pdsEvTree"));
+  
+  int ich = 0;
+  for( int i = 6166; i <= 6297; i+=(6297-6166)/nch ) {
+    if( ich == nch ) break;
+    cout << "Chain #" << ich << " contains runs ( ";
+    for( int j = 0; j < nrun && i+j <= 6297 && ich < nch; j++ ) {
+      cout << i+j << " ";
+      ((TChain*)ch->At(ich))->Add(Form("data/pdsTree%04d/pds*",i+j));
+    }
+    cout << ")..." << endl;
+    ich++;
+  }
+  
+  // Set up plots
+  Int_t nbins = 25;
+  Double_t xmin = 0;
+  Double_t xmax = 3.2e3;
+  TObjArray* hist = new TObjArray();
+  for( Int_t ich = 0; ich < nch; ich++ )
+    hist->Add(new TH1F(Form("hist%d",ich),";dt (ns);triplet hits",nbins,xmin,xmax));
+
+  // Set up times
+  Double_t time[nch];
+  Float_t timeBins[nch*2];
+
+  // Set up fit
+  TObjArray* fit = new TObjArray();
+  TF1* fit_func = new TF1("fit","exp([0]-x/[1])",300,2500);
+  fit_func->SetParameters(2,1000);
+  fit_func->SetParLimits(1,0.1,1e5);
+
+  // Set branches
+  for( int ich = 0; ich < nch; ich++ ) {
+    ((TChain*)ch->At(ich))->SetBranchStatus("*", kFALSE);
+
+    ((TChain*)ch->At(ich))->SetBranchAddress("gps_yr",&gps_yr);
+    ((TChain*)ch->At(ich))->SetBranchAddress("gps_d",&gps_d);
+    ((TChain*)ch->At(ich))->SetBranchAddress("gps_s",&gps_s);
+    ((TChain*)ch->At(ich))->SetBranchAddress("gps_ns",&gps_ns);
+
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_hits",&pds_hits);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pmt_hits",pmt_hits);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_time",pds_time);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pmt_time",pmt_time);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_peak",pds_peak);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pmt_peak",pmt_peak);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_integral",pds_integral);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pmt_integral",pmt_integral);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_flag",&pds_flag);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pmt_flag",pmt_flag);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_FWHM",pds_FWHM);
+    ((TChain*)ch->At(ich))->SetBranchAddress("pmt_FWHM",pmt_FWHM);
+    ((TChain*)ch->At(ich))->SetBranchAddress("inBeamWindow",&inBeamWindow);
+    ((TChain*)ch->At(ich))->SetBranchAddress("isBeamTrigger",&isBeamTrigger);
+    ((TChain*)ch->At(ich))->SetBranchAddress("rf_time",&rf_time);
+
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_hits",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pmt_hits",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_time",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pmt_time",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_peak",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pmt_peak",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_integral",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pmt_integral",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_flag",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pmt_flag",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_FWHM",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("pmt_FWHM",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("inBeamWindow",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("isBeamTrigger",kTRUE);
+    ((TChain*)ch->At(ich))->SetBranchStatus("rf_time",kTRUE);
+  
+    // Loop over events
+    Double_t meanTime = 0.;
+    Double_t minTime = 0;
+    Double_t maxTime = 0;
+    for( Int_t i = 0; ((TChain*)ch->At(ich))->GetEntry(i); i++ ) {      
+      meanTime += gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
+      if( i == 0 ) 
+	minTime = gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
+      if( i == ((TChain*)ch->At(ich))->GetEntries()-1 )
+	maxTime = gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
+      // Status update
+      if( i%(((TChain*)ch->At(ich))->GetEntries()/10) == 0 )
+	cout << "Chain #" << ich << ": " 
+	     << i << " of " << ((TChain*)ch->At(ich))->GetEntriesFast() << "\n"
+	     << "Time: " << gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24 << endl;
+      // Cut events
+      if( inBeamWindow && pds_flag ) {
+	// Loop over PDS
+	Double_t TOF = pds_time[0] - rf_time - kDelay;
+	Double_t TOF_hit = 0;
+	for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
+	  if( pmt_flag[pmt] ) {
+	    for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
+	      TOF_hit = pmt_time[pmt][j] - pmt_time[pmt][0];
+	      if( pmt_time[pmt][j] > pmt_time[pmt][0] &&
+		  (pmt_peak[pmt][0] > 5 &&
+		   TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
+		(TH1F*)hist->At(ich)->TH1F::Fill(TOF_hit);
+	    }
+	  }
+	}
+      }
+    }
+    
+    meanTime = meanTime/((TChain*)ch->At(ich))->GetEntries();
+    timeBins[ich*2] = minTime;
+    timeBins[ich*2+1] = maxTime;
+    time[ich] = meanTime;
+    cout << "Average run time: " << time[ich] << endl;
+    
+    fit->Add((TH1F*)hist->At(ich)->TH1F::Fit("fit","sr"));
+    (TH1F*)hist->At(ich)->TH1F::Draw("e");
+    vector<Double_t> N2 = GetN2AndError((TFitResultPtr)fit->At(ich));
+    cout << "N2: " << N2[0] << "+/-" << N2[1] << "ppm" << endl;
+    c1->SetLogy();
+    c1->Update();
+  }
+  
+  TH1F* hN2 = new TH1F("hN2","Nitrogen concentration over WNR runs;;[N_{2}] (ppm)",
+		       nch*2-1, timeBins);
+  for( Int_t ich = 0; ich < nch; ich++ ) {
+    vector<Double_t> N2 = GetN2AndError((TFitResultPtr)fit->At(ich));
+    cout << "N2: " << N2[0] << "+/-" << N2[1] << "ppm" << endl;
+    cout << "Time: " << timeBins[ich*2] << ", " << time[ich] << "," << timeBins[ich*2+1] << endl;
+    hN2->Fill(time[ich], N2[0]);
+    hN2->SetBinError(hN2->FindBin(time[ich]),N2[1]);
+  }
+  
+  hN2->SetLineColor(kBlack);
+  hN2->SetMarkerStyle(20);
+  hN2->GetXaxis()->SetTimeDisplay(1);
+  hN2->GetXaxis()->SetTimeFormat("%m/%d");
+  hN2->Draw("e1");
+
+  c1->SetLogy(0);
+  c1->SetGridx(); c1->SetGridy();
+  hN2->SaveAs("plots/nitrogen-conc.C");
+}
+
+using namespace TMath;
+vector<Double_t> GetN2AndError(TFitResultPtr& f) {
+  vector<Double_t> N2(2,0.0);
+  if( !f || f->IsEmpty() ) return N2;
+
+  Double_t nominalLifetime = 1453;
+  Double_t nominalLifetime_err = 10;
+  Double_t fitLifetime = f->Parameter(1);
+  Double_t fitLifetime_err = f->ParError(1);
+
+  N2[0] = (nominalLifetime - fitLifetime) / 110;
+  N2[1] = Sqrt( Power(nominalLifetime_err / 110, 2) + 
+		Power(fitLifetime_err / 110, 2) + 
+		Power(10 * N2[0] / 110, 2) );
+  
+  return N2;
+}
+
+		
