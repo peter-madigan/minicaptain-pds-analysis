@@ -10,4 +10,6 @@ void pmt_rate() {
 
   c1->SetLogy();
   c1->SetGridy();
+
+  c1->SaveAs("plots/pmt_rate.C");
 }

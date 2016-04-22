@@ -71,13 +71,43 @@ void PDSAnalysis::InitializeADC_to_pe() {
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
       kADC_to_pe[pmt] = 1.0;
 }
+void PDSAnalysis::InitializeADCns_to_pe() {
+  kADCns_to_pe.push_back(-1./14.111); // #1 Dead pmt?
+  kADCns_to_pe.push_back(-1./13.47); // #2   
+  kADCns_to_pe.push_back(-1./13.57); // #3   
+  kADCns_to_pe.push_back(-1./13.56); // #4   
+  kADCns_to_pe.push_back(-1./13.07); // #5   
+  
+  kADCns_to_pe.push_back(-1./12.95); // #6   
+  kADCns_to_pe.push_back(-1./12.25); // #7   
+  kADCns_to_pe.push_back(-1./12.80); // #8   
+  kADCns_to_pe.push_back(-1./13.52); // #9                                                        
+  kADCns_to_pe.push_back(-1./11.56); // #10  
+  
+  kADCns_to_pe.push_back(-1./13.86); // #11                                   
+  kADCns_to_pe.push_back(-1./13.80); // #12  
+  kADCns_to_pe.push_back(-1./12.71); // #13                                        
+  kADCns_to_pe.push_back(-1./11.61); // #14  
+  kADCns_to_pe.push_back(-1./10.23); // #15   
 
-PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t CalibrationMode, Bool_t ViewerMode) 
+  if( fCalibration )
+    for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
+      kADCns_to_pe[pmt] = 1.0;
+}
+
+
+PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, TString opt) 
 {
   std::cout << "New analysis: " << runNum << std::endl;
-  fCalibration = CalibrationMode;
-  fViewerMode  = ViewerMode;
+  fCalibration = opt.Contains('c');
+  fViewerMode  = opt.Contains('v');
+  fStoreAll    = opt.Contains('s');
   
+  if( fStoreAll )
+    std::cout << "All triggers will be stored!" << std::endl;
+  else
+    std::cout << "Only pds events >" << kSumThreshold << "pe will be stored." << std::endl;
+
   if( fViewerMode ) {
     std::cout << "Running in viewer mode..." << std::endl;
     fCanvas = new TCanvas("fCanvas","Event viewer");
@@ -93,6 +123,7 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, Bool_t C
   fPMTTree = ImportTree(fiName);
   fAnalysisTree = SetupNewTree(foName);
   InitializeADC_to_pe();
+  InitializeADCns_to_pe();
   
   Loop();
   
@@ -346,7 +377,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
       ConvertUnits();
       
       // Save and ready for next trig
-      if( pds_flag || fCalibration ) fAnalysisTree->Fill();
+      if( pds_flag || fCalibration || fStoreAll ) fAnalysisTree->Fill();
       //
     } else {
       // Beam trigger
@@ -371,7 +402,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
 	  }
 	  
 	  // Draw trig                                             
-	  if( fViewerMode && pds_nevent > 1) {
+	  if( fViewerMode ) {
 	    PrintEvent();
 	    DrawEvent();
 	  }
@@ -380,7 +411,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
 	  ConvertUnits();
 	  
 	  // Save and ready for next trig                      
-	  if( pds_flag || fCalibration ) fAnalysisTree->Fill();
+	  if( pds_flag || fCalibration || fStoreAll ) fAnalysisTree->Fill();
 	}
     } 
     
@@ -578,6 +609,7 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
       if( Abs(new_vector[new_vector.size()-1] - prompt_time) < Abs(new_vector[maxi] - prompt_time))
 	maxi = new_vector.size()-1;
     }
+    
   }
   
   if( new_vector.empty() )
@@ -1134,23 +1166,26 @@ Double_t PDSAnalysis::QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double
 
 void PDSAnalysis::ConvertUnits()
 {
-  for( Int_t hit = 0; hit < pds_hits; hit++ ) {
-    pds_time[hit] *= kTick_to_ns;
-    pds_peak[hit] *= -1.;
-    pds_FWHM[hit] *= kTick_to_ns;
-    pds_integral[hit] *= kTick_to_ns * -1.;
-  }
-  rf_time *= kTick_to_ns;
+  Double_t mean_conversion = 0;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-    for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < (Int_t)PDSAnalysis::kMaxNHits; hit++ ) {
+    if( pmt != 0 ) mean_conversion = kADCns_to_pe[pmt] / kADC_to_pe[pmt];
+    for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < PDSAnalysis::kMaxNHits; hit++ ) {
       pmt_time[pmt][hit] *= kTick_to_ns;
       pmt_peak[pmt][hit] *= kADC_to_pe[pmt];
       pmt_FWHM[pmt][hit] *= kTick_to_ns;
-      pmt_integral[pmt][hit] *= kTick_to_ns * kADC_to_pe[pmt];
+      pmt_integral[pmt][hit] *= kADCns_to_pe[pmt];
     }
     for( UInt_t pmt2 = 0; pmt2 < kNPMTs; pmt2++ )
       pmt_dtime[pmt][pmt2] *= kTick_to_ns;
   }
+  mean_conversion = mean_conversion / (kNPMTs - 1);
+  for( Int_t hit = 0; hit < pds_hits; hit++ ) {
+    pds_time[hit] *= kTick_to_ns;
+    pds_peak[hit] *= -1.;
+    pds_FWHM[hit] *= kTick_to_ns;
+    pds_integral[hit] *= -mean_conversion;
+  }
+  rf_time *= kTick_to_ns;
 }
 
 void PDSAnalysis::FFT(CArray &x)
@@ -1204,7 +1239,7 @@ void PDSAnalysis::PrintEvent()
 	      << Form("%.4g",pmt_time[pmt][0] * kTick_to_ns) << "\t"
 	      << Form("%.4g",pmt_peak[pmt][0] * kADC_to_pe[pmt]) << "\t"
 	      << Form("%.4g",pmt_FWHM[pmt][0] * kTick_to_ns) << "\t"
-	      << Form("%.4g",pmt_integral[pmt][0] * kTick_to_ns * kADC_to_pe[pmt]) << "\t"
+	      << Form("%.4g",pmt_integral[pmt][0] * kADCns_to_pe[pmt]) << "\t"
 	      << Form("%.4g",pmt_offset[pmt]) << "\t"
 	      << Form("%.4g",pmt_ratio[pmt]) << "\t"
 	      << Form("%5d",pmt_hits[pmt]) << "\t"

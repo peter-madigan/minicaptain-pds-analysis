@@ -120,7 +120,7 @@ void pmt_calib() {
     // integral fit
     std::cout << "~~~\t" << "Integral #" << pmt+1 << "\t~~~" << std::endl;
     low_edge =  -20;
-    high_edge = -9;
+    high_edge = -10;
     gaus -> SetRange(low_edge, high_edge);
 
     c_int->cd(1+pmt)->SetLogy();

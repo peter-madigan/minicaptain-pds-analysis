@@ -68,7 +68,7 @@ void nitrogen() {
 
   // Set up fit
   TObjArray* fit = new TObjArray();
-  TF1* fit_func = new TF1("fit","exp([0]-x/[1])",300,2500);
+  TF1* fit_func = new TF1("fit","exp([0]-x/[1])",500,3000);
   fit_func->SetParameters(2,1000);
   fit_func->SetParLimits(1,0.1,1e5);
 
@@ -176,7 +176,8 @@ void nitrogen() {
   hN2->SetLineColor(kBlack);
   hN2->SetMarkerStyle(20);
   hN2->GetXaxis()->SetTimeDisplay(1);
-  hN2->GetXaxis()->SetTimeFormat("%m/%d");
+  hN2->GetXaxis()->SetTimeFormat("%m/%d%p");
+  hN2->GetXaxis()->SetNdivisions(205);
   hN2->Draw("e1");
 
   c1->SetLogy(0);

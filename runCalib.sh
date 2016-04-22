@@ -16,7 +16,7 @@ for runno in "${runs[@]}"; do
     echo "Checking for run $runno..."
     if [ -d $datadir/run$runno ]; then
 	echo "Run found! Submitting run $runno..."
-	qsub -v runnumber="$runno" -v datadir="$datadir" -l projectio=1 -j y -o "./logs" runSingle.sh
+	qsub -v runnumber="$runno" -v datadir="$datadir" -v opt="cs" -l projectio=1 -j y -o "./logs" runSingle.sh
     fi
 done
 
@@ -41,7 +41,7 @@ for runno in "${runs[@]}"; do
         mkdir -v $outdir/pdsTree$runno
         for infile in `ls "$datadir/run$runno"`; do
             if [ -f "$infile" ] && [ -s "$infile" ] && [ "${infile: -5}" == ".root" ]; then
-                root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\")"
+                root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",\"s\")"
                 let "i++"
             fi
         done

@@ -8,13 +8,11 @@ else
     runno="$runnumber"
 fi
 
-calib="false"
 if [ "$datadir" == "" ]; then
     datadir=/project/projectdirs/captain/data/2016/pmt/2016WNRRun2
     outdir=./data
 else
     outdir=./calib
-    calib="true"
 fi
 
 echo "Checking for run $runno..."
@@ -31,7 +29,7 @@ if [ -d $datadir/run$runno ]; then
 	if [ ! ${infile: -5} == ".root" ]; then
 	    echo "...is a ${infile: -5} file. Skipping..."
 	else
-	    root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",$calib,false)"
+	    root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",\"$opt\")"
 	    let "i++"
 	fi
     done

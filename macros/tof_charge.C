@@ -62,7 +62,7 @@ void tof_charge() {
 
   // Create plots
   Double_t ymin = 0;
-  Double_t ymax = 200;
+  Double_t ymax = 400;
   Double_t xmin = -1.7e3;
   Double_t xmax = 2.8e3;
   Double_t hitmin = 0;

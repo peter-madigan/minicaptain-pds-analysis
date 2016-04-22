@@ -52,7 +52,7 @@ class PDSAnalysis
   static const Double_t kTPCGateWidth;
   
   std::vector<Double_t> kADC_to_pe;
-  Double_t              kMeanADC_to_pe;
+  std::vector<Double_t> kADCns_to_pe;
   static const Double_t kTick_to_ns;
   
   // Input tree
@@ -110,14 +110,16 @@ class PDSAnalysis
   TCanvas* fCanvas;
   Bool_t   fCalibration;
   Bool_t   fViewerMode;
+  Bool_t   fStoreAll;
   std::vector<TH1F*>  fMeanWaveform;
   std::vector< std::vector<TH1F*> > fCalibrationFFT;
 
   // functions
-  PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root", Bool_t CalibrationMode=false, Bool_t ViewerMode=false);
+  PDSAnalysis(TString fiName="outFile_1.root", UInt_t runNum=1, TString foName="pdsEvTree_.root", TString opt="");
   ~PDSAnalysis();
 
   void InitializeADC_to_pe();
+  void InitializeADCns_to_pe();
   TTree* ImportTree(TString fiName);
   TTree* SetupNewTree(TString foName);
   void   LoadCalibrationFFT();
