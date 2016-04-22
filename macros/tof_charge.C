@@ -3,6 +3,7 @@ static const Int_t kMaxNHits = 200;
 static const Double_t kDelay = -671.25 - 77.267;
 static const Double_t kIntToPE = 0.07084;
 
+Int_t    pds_nevent;
 Int_t    pds_hits;
 Int_t    pmt_hits[kNPMTs];
 Double_t pds_time[kMaxNHits];
@@ -25,6 +26,7 @@ void tof_charge() {
 
   pdsEvTree->SetBranchStatus("*", kFALSE);
 
+  pdsEvTree->SetBranchAddress("pds_nevent",&pds_nevent);
   pdsEvTree->SetBranchAddress("pds_hits",&pds_hits);
   pdsEvTree->SetBranchAddress("pmt_hits",pmt_hits);
   pdsEvTree->SetBranchAddress("pds_time",pds_time);
@@ -41,6 +43,7 @@ void tof_charge() {
   pdsEvTree->SetBranchAddress("isBeamTrigger",&isBeamTrigger);
   pdsEvTree->SetBranchAddress("rf_time",&rf_time);
 
+  pdsEvTree->SetBranchStatus("pds_nevent",kTRUE);
   pdsEvTree->SetBranchStatus("pds_hits",kTRUE);
   pdsEvTree->SetBranchStatus("pmt_hits",kTRUE);
   pdsEvTree->SetBranchStatus("pds_time",kTRUE);
@@ -100,7 +103,7 @@ void tof_charge() {
     if( i%(pdsEvTree->GetEntriesFast()/10) == 0 )
       cout << i << " of " << pdsEvTree->GetEntries() << endl;
     // Cut events
-    if( inBeamWindow && pds_flag ) {
+    if( inBeamWindow && pds_flag && pds_nevent == 1 ) {
       // Loop over PDS
       Double_t TOF = pds_time[0] - rf_time - kDelay;
       Double_t event_singlet_integral = 0;
@@ -114,15 +117,15 @@ void tof_charge() {
 	  triplet_integral = 0;
 	  
 	  for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
-	    TOF_hit = pmt_time[pmt][j] - pmt_time[pmt][0];
-	    if( pmt_time[pmt][j] > pmt_time[pmt][0] )
+	    TOF_hit = pmt_time[pmt][j] - pds_time[0];
+	    if( pmt_time[pmt][j] > pds_time[0] )
 	      triplet_integral += pmt_integral[pmt][j] * kIntToPE;
 
 	    h_integral_hit->Fill(TOF_hit,pmt_integral[pmt][j] * kIntToPE);
 	    h_peak_hit->Fill(TOF_hit,pmt_peak[pmt][j]);
 	    h_FWHM_hit->Fill(TOF_hit,pmt_FWHM[pmt][j]);
 	    
-	    if( pmt_time[pmt][j] > pmt_time[pmt][0] &&
+	    if( pmt_time[pmt][j] > pds_time[0] &&
 		(pmt_peak[pmt][0] > 5 &&
 		 TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
 	      h_tof_hit->Fill(TOF_hit);
@@ -163,5 +166,5 @@ void tof_charge() {
   h_ratio->SaveAs("plots/tof-ratio.C");
 
   // Draw plot(s)
-  h_ratio->Draw("colz");
+  h_tof_hit->Draw();
 }  

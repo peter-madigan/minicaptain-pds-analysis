@@ -37,6 +37,7 @@ void tof_to_spectrum() {
 
   pdsEvTree->SetBranchStatus("*", kFALSE);
 
+  pdsEvTree->SetBranchAddress("pds_nevent",&pds_nevent);
   pdsEvTree->SetBranchAddress("pds_hits",&pds_hits);
   pdsEvTree->SetBranchAddress("pmt_hits",pmt_hits);
   pdsEvTree->SetBranchAddress("pds_time",pds_time);
@@ -53,6 +54,7 @@ void tof_to_spectrum() {
   pdsEvTree->SetBranchAddress("isBeamTrigger",&isBeamTrigger);
   pdsEvTree->SetBranchAddress("rf_time",&rf_time);
 
+  pdsEvTree->SetBranchStatus("pds_nevent",kTRUE);
   pdsEvTree->SetBranchStatus("pds_hits",kTRUE);
   pdsEvTree->SetBranchStatus("pmt_hits",kTRUE);
   pdsEvTree->SetBranchStatus("pds_time",kTRUE);
@@ -99,7 +101,7 @@ void tof_to_spectrum() {
 
   // Loop over ev
   for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
-    if( pds_flag && inBeamWindow && !isBeamTrigger ) {
+    if( pds_flag && inBeamWindow && !isBeamTrigger && pds_nevent==1 ) {
       // Find n KE
       Double_t time = (pds_time[0] - rf_time) * 1e-9;
       Double_t p = time_to_p(time);

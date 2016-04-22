@@ -128,7 +128,7 @@ class PDSAnalysis
   void DoPDSAnalysis(Double_t rf_pulse=848);
 
   Int_t QuickCheckMult(std::vector<Double_t> &rf_pulse);
-  std::vector<Int_t> CheckHits(TH1F* h, std::vector<Int_t> &peak_time);
+  std::vector<Int_t> CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time);
   Bool_t IsPMTEvent(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time);
   Bool_t IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time);
 

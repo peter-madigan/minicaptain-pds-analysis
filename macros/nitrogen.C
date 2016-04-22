@@ -7,6 +7,7 @@ static const Double_t kIntToPE = 0.07084;
 
 UShort_t gps_yr, gps_d;
 UInt_t   gps_s,  gps_ns;
+Int_t    pds_nevent;
 Int_t    pds_hits;
 Int_t    pmt_hits[kNPMTs];
 Double_t pds_time[kMaxNHits];
@@ -80,6 +81,7 @@ void nitrogen() {
     ((TChain*)ch->At(ich))->SetBranchAddress("gps_s",&gps_s);
     ((TChain*)ch->At(ich))->SetBranchAddress("gps_ns",&gps_ns);
 
+    ((TChain*)ch->At(ich))->SetBranchAddress("pds_nevent",&pds_nevent);
     ((TChain*)ch->At(ich))->SetBranchAddress("pds_hits",&pds_hits);
     ((TChain*)ch->At(ich))->SetBranchAddress("pmt_hits",pmt_hits);
     ((TChain*)ch->At(ich))->SetBranchAddress("pds_time",pds_time);
@@ -96,6 +98,7 @@ void nitrogen() {
     ((TChain*)ch->At(ich))->SetBranchAddress("isBeamTrigger",&isBeamTrigger);
     ((TChain*)ch->At(ich))->SetBranchAddress("rf_time",&rf_time);
 
+    ((TChain*)ch->At(ich))->SetBranchStatus("pds_nevent",kTRUE);
     ((TChain*)ch->At(ich))->SetBranchStatus("pds_hits",kTRUE);
     ((TChain*)ch->At(ich))->SetBranchStatus("pmt_hits",kTRUE);
     ((TChain*)ch->At(ich))->SetBranchStatus("pds_time",kTRUE);
@@ -128,15 +131,15 @@ void nitrogen() {
 	     << i << " of " << ((TChain*)ch->At(ich))->GetEntriesFast() << "\n"
 	     << "Time: " << gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24 << endl;
       // Cut events
-      if( inBeamWindow && pds_flag ) {
+      if( inBeamWindow && pds_flag && pds_nevent == 1) {
 	// Loop over PDS
 	Double_t TOF = pds_time[0] - rf_time - kDelay;
 	Double_t TOF_hit = 0;
 	for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
 	  if( pmt_flag[pmt] ) {
 	    for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
-	      TOF_hit = pmt_time[pmt][j] - pmt_time[pmt][0];
-	      if( pmt_time[pmt][j] > pmt_time[pmt][0] &&
+	      TOF_hit = pmt_time[pmt][j] - pds_time[0];
+	      if( pmt_time[pmt][j] > pds_time[0] &&
 		  (pmt_peak[pmt][0] > 5 &&
 		   TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
 		(TH1F*)hist->At(ich)->TH1F::Fill(TOF_hit);
@@ -186,15 +189,17 @@ vector<Double_t> GetN2AndError(TFitResultPtr& f) {
   vector<Double_t> N2(2,0.0);
   if( !f || f->IsEmpty() ) return N2;
 
-  Double_t nominalLifetime = 1453;
-  Double_t nominalLifetime_err = 10;
-  Double_t fitLifetime = f->Parameter(1);
-  Double_t fitLifetime_err = f->ParError(1);
+  Double_t tau0 = 1453;
+  Double_t tau0_err = 10;
+  Double_t tau1 = f->Parameter(1);
+  Double_t tau1_err = f->ParError(1);
+  Double_t kQ = 0.000110;
+  Double_t kQ_err = 0.000010;
 
-  N2[0] = (nominalLifetime - fitLifetime) / 110;
-  N2[1] = Sqrt( Power(nominalLifetime_err / 110, 2) + 
-		Power(fitLifetime_err / 110, 2) + 
-		Power(10 * N2[0] / 110, 2) );
+  N2[0] = (1 / tau1 - 1 / tau0) / kQ;
+  N2[1] = Sqrt(Power(kQ_err * (1 / tau1 - 1 / tau0) / kQ / kQ, 2) +
+	       Power(tau0_err / kQ / tau0 / tau0, 2) + 
+	       Power(tau1_err / kQ / tau1 / tau1, 2) );
   
   return N2;
 }
