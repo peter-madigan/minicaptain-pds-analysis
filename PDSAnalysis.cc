@@ -29,7 +29,7 @@ const Double_t PDSAnalysis::kPi = Pi();
 const Int_t    PDSAnalysis::kTrigger        = 848;
 const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
-const Double_t PDSAnalysis::kSumThreshold      = 2.00; // pe
+const Double_t PDSAnalysis::kSumThreshold      = 4.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold_pmt = 7.0; // ADC ticks
@@ -41,8 +41,8 @@ const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
 const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; 
 const Int_t    PDSAnalysis::kHitSearchWindow_pre   = 250;
 const Int_t    PDSAnalysis::kHitSearchWindow_post  = 800;
-const Int_t    PDSAnalysis::kBeamSearchWindow_post = 400;
-const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 25;
+const Int_t    PDSAnalysis::kBeamSearchWindow_post = 100;
+const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 350;
 
 const Double_t PDSAnalysis::kBeamPulseWidth = 625e-6;
 const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
@@ -155,15 +155,16 @@ TTree* PDSAnalysis::SetupNewTree(TString foName)
   
   TTree* tree = new TTree("pdsEvTree","pdsEvTree");
     
-  tree->Branch("runno",    &runno,    "runno/i");
-  tree->Branch("tpc_evno", &tpc_evno, "tpc_evno/I");
-  tree->Branch("pds_nevent", &pds_nevent, "pds_nevent/i");
+  tree->Branch("runno",    &runno,    "runno/I");
+  tree->Branch("tpc_trigno", &tpc_trigno, "tpc_trigno/I");
+  tree->Branch("pds_ntrig",  &pds_ntrig,  "pds_ntrig/I");
   tree->Branch("gps_yr",   &gps_yr,   "gps_yr/s");
   tree->Branch("gps_d",    &gps_d,    "gps_d/s");
   tree->Branch("gps_s",    &gps_s,    "gps_s/i");
   tree->Branch("gps_ns",   &gps_ns,   "gps_ns/i");
 
-  tree->Branch("pds_evno", &pds_evno, "pds_evno/I");
+  tree->Branch("pds_trigno", &pds_trigno, "pds_trigno/I");
+  tree->Branch("pds_nevent", &pds_nevent, "pds_nevent/I");
   tree->Branch("pds_hits", &pds_hits, "pds_hits/I");
   tree->Branch("pds_ratio",&pds_ratio,"pds_ratio/D");
   tree->Branch("pds_time", pds_time, "pds_time[pds_hits]/D");
@@ -230,22 +231,22 @@ void PDSAnalysis::Loop()
   Bool_t TPC0 = false;
   Bool_t TPC1 = false;
 
-  // Loop over all events in tree
-  tpc_evno = 0;
+  // Loop over all trigs in tree
+  tpc_trigno = 0;
   UInt_t i = 0; // TPC start variable
   UInt_t j = 1; // TPC end variable
   if( !fCalibration ) {
     while( fPMTTree->GetEntry(i) ) {
-      // Check if current event has a gps signature
+      // Check if current trig has a gps signature
       TPC0 = (fGPS_s + fGPS_ns > 0);
       if( TPC0 ) {
-	// Check if next event has a gps signature
+	// Check if next trig has a gps signature
 	j = i+1;
 	fPMTTree->GetEntry(j);
 	TPC1 = (fGPS_s + fGPS_ns > 0);
 	if( TPC1 ) {
 	  // New TPC trigger
-	  tpc_evno++;
+	  tpc_trigno++;
 	  j++;
 	  while( fPMTTree->GetEntry(j) ) {
 	  // Find end of TPC trigger
@@ -259,7 +260,7 @@ void PDSAnalysis::Loop()
 	  }
 	  if( !fPMTTree->GetEntry(j) ) j--;
 	  // Do analysis between tpc start and end
-	  if( j>i ) DoEventAnalysis(i,j);
+	  if( j>i ) DoTrigAnalysis(i,j);
 	  else { i++; continue; }
 	  
 	  i++;
@@ -268,14 +269,14 @@ void PDSAnalysis::Loop()
     }
   }
   // No tpc trigger found -> do cosmic analysis
-  if( tpc_evno == 0 ) {
+  if( tpc_trigno == 0 ) {
     if( !fCalibration )
-      std::cout << "No tpc triggers found. Re-analyzing without tpc event grouping..." << std::endl;
+      std::cout << "No tpc triggers found. Re-analyzing without tpc trig grouping..." << std::endl;
     else
       std::cout << "Looping in calibration mode..." << std::endl;
     while( fPMTTree->GetEntry(i) ) {
-      // Do single event analysis
-      DoEventAnalysis(i, i);
+      // Do single trig analysis
+      DoTrigAnalysis(i, i);
 
       // Save
       fAnalysisTree->Fill();
@@ -288,8 +289,8 @@ void PDSAnalysis::Loop()
     for( UInt_t pmt = 0; pmt < kNPMTs+1; pmt++ ) {
       RemoveADCOffset(fMeanWaveform[pmt]);
       //fMeanWaveform[pmt]->Scale(-1./fMeanWaveform[pmt]->GetMinimum());
-      if( pmt < kNPMTs )
-	FFTFilter(fMeanWaveform[pmt], pmt);
+      if( pmt > 0 )
+	FFTFilter(fMeanWaveform[pmt], pmt-1);
       else
 	FFTFilter(fMeanWaveform[pmt], -1);
     } 
@@ -297,7 +298,7 @@ void PDSAnalysis::Loop()
   // Draw mean
   if( fViewerMode && !fCanvas->IsBatch() ) {
     fCanvas->cd();
-    fMeanWaveform[kNPMTs]->Draw("l");
+    fMeanWaveform[0]->Draw("l");
     fCanvas->Update();
     std::cout << "Press any key to continue..." << std::endl;
     char* s = new char[1];
@@ -305,7 +306,7 @@ void PDSAnalysis::Loop()
   }
 }
 
-void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
+void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
 {
   fPMTTree->GetEntry(start);
   gps_yr = fGPS_y;
@@ -313,36 +314,84 @@ void PDSAnalysis::DoEventAnalysis(Int_t start, Int_t end)
   gps_s  = fGPS_s;
   gps_ns = fGPS_ns;
 
-  pds_nevent = end - start + 1;
-  UInt_t subevent = 0;
-  while( fPMTTree->GetEntry(start + subevent) && subevent < pds_nevent ) {
-    // Do overall analysis
-    pds_evno = start + subevent;
-    DoPDSAnalysis(subevent);
+  pds_ntrig = end - start + 1;
+  Int_t subtrig = 0;
+  while( fPMTTree->GetEntry(start + subtrig) && subtrig < pds_ntrig ) {
+    // Find RF pulses
+    std::vector<Double_t> rf_pulse = FindRFTime();
     
-    // Do individual pmt analysis
-    for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-      DoPMTAnalysis(subevent, pmt);
-    }
+    if( rf_pulse.size() == 0 ) {
+      // Cosmic trigger
+      //
+      // Do single analysis
+      tpc_subtrigno = subtrig;
+      pds_trigno = start + subtrig;
+      pds_evno = 0;
+      pds_nevent = 1;
+
+      DoPDSAnalysis();
     
-    // Draw event
+      // Do individual pmt analysis
+      for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
+	DoPMTAnalysis(pmt);
+      }
+      
+      // Draw trig
+      if( fViewerMode ) {
+	PrintEvent();
+	DrawEvent();
+      }
+      
+      // Convert units
+      ConvertUnits();
+      
+      // Save and ready for next trig
+      if( pds_flag || fCalibration ) fAnalysisTree->Fill();
+      //
+    } else {
+      // Beam trigger
+      //
+      // Check for events
+      pds_nevent = QuickCheckMult(rf_pulse);
+      
+      // Update counters
+      tpc_subtrigno = subtrig;
+      pds_trigno = start + subtrig;
+      
+      // Loop over rf pulses
+      if( pds_nevent > 0 || fViewerMode )
+	for( UInt_t rf_i = 0; rf_i < rf_pulse.size(); rf_i++ ) {
+	  // Do single analysis      
+	  pds_evno = rf_i;
+	  DoPDSAnalysis(rf_pulse[rf_i]);
+	  
+	  // Do individual pmt analysis                
+	  for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
+	    DoPMTAnalysis(pmt, rf_pulse[rf_i]);
+	  }
+	  
+	  // Draw trig                                             
+	  if( fViewerMode ) {
+	    PrintEvent();
+	    DrawEvent();
+	  }
+	  
+	  // Convert units                                     
+	  ConvertUnits();
+	  
+	  // Save and ready for next trig                      
+	  if( pds_flag || fCalibration ) fAnalysisTree->Fill();
+	}
+    } 
+    
+    // Update
     if( pds_evno % (fPMTTree->GetEntries()/10)==0 )
-      PrintEvent(subevent);
-    if( fViewerMode ) {
-      PrintEvent(subevent);
-      DrawEvent(subevent);
-    }
-    
-    // Convert units
-    ConvertUnits(subevent);
-    
-    // Save and ready for next event
-    if( pds_flag ) fAnalysisTree->Fill();
-    subevent++;
+      PrintEvent();
+    subtrig++;
   }
 }
 
-void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt) 
+void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time) 
 {
   // Create PMT histogram
   TH1F* hPMT = GetPMT(pmt);
@@ -354,15 +403,15 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
   peak_time = CheckHits(hPMT, peak_time);
-  if( peak_time.size() < kMaxNHits ) pmt_hits[pmt] = peak_time.size();
-  else                               pmt_hits[pmt] = kMaxNHits;
+  if( (Int_t)peak_time.size() < kMaxNHits ) pmt_hits[pmt] = peak_time.size();
+  else                               pmt_hits[pmt] = kMaxNHits; 
 
   if( peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
       pmt_ratio[pmt] = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
     else
       pmt_ratio[pmt] = 0;
-    for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < (Int_t)PDSAnalysis::kMaxNHits; hit++ ) {
+    for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < PDSAnalysis::kMaxNHits; hit++ ) {
       pmt_peak[pmt][hit] = hPMT->GetBinContent(peak_time[hit]);
       pmt_FWHM[pmt][hit] = FWHM(hPMT, peak_time[hit]);
       pmt_time[pmt][hit] = FindEvTime(hPMT, peak_time[hit]);
@@ -375,22 +424,23 @@ void PDSAnalysis::DoPMTAnalysis(Int_t subevent, Int_t pmt)
     pmt_time[pmt][0] = -9999; 
     pmt_integral[pmt][0] = -9999;
   }
-
+  
   // Flag if not noise
-  pmt_flag[pmt] = IsPMTEvent(hPMT, subevent, pmt, peak_time);
+  pmt_flag[pmt] = IsPMTEvent(hPMT, pmt, peak_time);
 
   // Store waveform for calibration FFT
   if( fMeanWaveform.size() != kNPMTs+1 ) {
     fMeanWaveform.push_back( (TH1F*)hPMT->Clone(Form("hMeanWaveform_%d",pmt)) );
     fMeanWaveform[fMeanWaveform.size()-1]->Reset();
-  }
-  if( pmt_flag[pmt] )
-    fMeanWaveform[pmt]->Add(hPMT);
+    if( pmt_flag[pmt] )
+      fMeanWaveform[fMeanWaveform.size()-1]->Add(hPMT);
+  } else if( pmt_flag[pmt] )
+    fMeanWaveform[pmt+1]->Add(hPMT);
   
   hPMT->Delete();
 }
 
-void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
+void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   // Create PMT histogram        
   TH1F* hPMT = GetPMTSum();
   pds_offset = RemoveADCOffset(hPMT);
@@ -398,8 +448,14 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   //FFTFilter(hPMT, -1);
   //MedianFilter(hPMT);
 
+  // Check beam                                          
+  if( rf_pulse != 848 ) rf_time = rf_pulse;
+  else                  rf_time = -9999;
+  inBeamWindow = !(rf_time == -9999);
+  isBeamTrigger = (tpc_subtrigno == 0);
+
   // Find peaks in histogram   
-  std::vector<Int_t> peak_time = FindPeaks(hPMT, -1);
+  std::vector<Int_t> peak_time = FindPeaks(hPMT);
   peak_time = CheckHits(hPMT, peak_time);
   pds_hits = peak_time.size();
   if( peak_time[0] != -9999 ) {
@@ -423,41 +479,56 @@ void PDSAnalysis::DoPDSAnalysis(Int_t subevent) {
   }
   
   // Flag if not noise 
-  pds_flag = IsPDSEvent(hPMT, subevent, peak_time);
+  pds_flag = IsPDSEvent(hPMT, peak_time);
 
   // Check beam
-  TH1F* hRF = GetRFMean();
-  RemoveADCOffset(hRF);
-  rf_time = FindRFTime(hRF, (Int_t)pds_time[0]);
-  inBeamWindow  = !(rf_time == -9999);
-  isBeamTrigger = (subevent == 0);
+  //TH1F* hRF = GetRFMean();
+  //RemoveADCOffset(hRF);
+  //rf_time = FindRFTime(hRF, (Int_t)pds_time[0]);
+  //inBeamWindow  = !(rf_time == -9999);
+  //isBeamTrigger = (subtrig == 0);
 
   // Time weighting
   if( inBeamWindow )
-    timeWt = 1./kBeamPulseWidth;
-  else if( tpc_evno == 0 )
-    timeWt = 1./((kPeakSearchWindow_pre + kPeakSearchWindow_post) * kTick_to_ns);
+    timeWt = 1./((kBeamSearchWindow_pre + kBeamSearchWindow_post));
   else
-    timeWt = 1./(kTPCGateWidth - kBeamPulseWidth);
-
+    timeWt = 1./((kPeakSearchWindow_pre + kPeakSearchWindow_post) * kTick_to_ns);
+  
   // PMT delta t ** not used currently and not entirely necessary**
   /* for( UInt_t ipmt = 0; ipmt < kNPMTs; ipmt++ )
     for( UInt_t jpmt = 0; jpmt < kNPMTs; jpmt++ )
-      if( pmt_time[ipmt][0] == -9999 || pmt_time[jpmt][0] == -9999 )
-	pmt_dtime[ipmt][jpmt] = -9999;
-      else
-      pmt_dtime[ipmt][jpmt] = pmt_time[ipmt][0] - pmt_time[jpmt][0]; */
-
+    if( pmt_time[ipmt][0] == -9999 || pmt_time[jpmt][0] == -9999 )
+    pmt_dtime[ipmt][jpmt] = -9999;
+    else
+    pmt_dtime[ipmt][jpmt] = pmt_time[ipmt][0] - pmt_time[jpmt][0]; */
+  
   // Store waveform for calibration FFT                                           
   if( fMeanWaveform.size() != kNPMTs+1 ) {
     fMeanWaveform.push_back( (TH1F*)hPMT->Clone("hMeanWaveform_sum") );
     fMeanWaveform[fMeanWaveform.size()-1]->Reset();
-  }
-  if( pds_flag )
+    if( pds_flag )
+      fMeanWaveform[fMeanWaveform.size()-1]->Add(hPMT);
+  } else if( pds_flag )
     fMeanWaveform[kNPMTs]->Add(hPMT);
+  
+  hPMT->Delete();
+}
+
+Int_t PDSAnalysis::QuickCheckMult(std::vector<Double_t> &rf_pulse)
+{
+  Int_t nevent = 0;
+  TH1F* hPMT = GetPMTSum();
+  pds_offset = RemoveADCOffset(hPMT);
+  
+  for( Int_t rf_i = 0; rf_i < rf_pulse.size(); rf_i++ )
+    for( Int_t sample = Max(rf_pulse[rf_i]-kBeamSearchWindow_pre, 1.); sample < Min(rf_pulse[rf_i]+kBeamSearchWindow_post, fNSamples + 1.); sample++ )
+      if( hPMT->GetBinContent(sample) < -kSumThreshold ) {
+	nevent++;
+	break;
+      }
 
   hPMT->Delete();
-  hRF->Delete();
+  return nevent;
 }
 
 std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, std::vector<Int_t> &peak_time) 
@@ -514,13 +585,13 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, std::vector<Int_t> &peak_time
   }
 
   // Check if oversize
-  if( new_vector.size() > kMaxNHits )
+  if( (Int_t)new_vector.size() > kMaxNHits )
     std::cout << "WARNING! Hits greater than kMaxNHits!" << std::endl;
 
   return new_vector;
 }
 
-Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time) 
+Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time) 
 {
   if( pmt_time[pmt][0] == -9999 ) return false;
   if( pmt_FWHM[pmt][0] == -9999 ) return false;
@@ -532,7 +603,7 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<I
   return true;
 }
 
-Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time) 
+Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time) 
 {
   if( pds_time[0] == -9999 ) return false;
   if( pds_FWHM[0] == -9999 ) return false;
@@ -738,8 +809,9 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
 
 std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt) 
 {
-  // Produces a list of peaks above the threshold
-  // First entry is global minimum (in search window)
+  // Produces a list of peaks above the threshold in the beam window (if beam event) or search 
+  //   window (if cosmic event)
+  // First entry is global minimum (for pmt sum)
   
   // Set threshold
   Double_t threshold;
@@ -758,11 +830,14 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     if( fCalibration ) {
       start = 850;
       finish = 1000;
+    } else if ( rf_time != -9999 ){
+      start = Max(rf_time - kBeamSearchWindow_pre, 1.);
+      finish = Min(rf_time + kBeamSearchWindow_post, fNSamples+1.);
     } else {
       start = kTrigger - kPeakSearchWindow_pre;
       finish = kTrigger + kPeakSearchWindow_post;
     }
-    for( UInt_t sample = start; sample < finish && sample < fNSamples; sample++ ) {
+    for( UInt_t sample = start; sample < finish; sample++ ) {
       if( h->GetBinContent(sample) < threshold ) {
 	if( peak_time[0] == -9999 )
 	  peak_time[0] = sample;
@@ -777,16 +852,16 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     start = 850;
     finish = 1000;
   } else if( pmt < 0 ) {
-    if( peak_time[0] == -9999 ) return peak_time; // Skip events without coincidence/large signal
-    start = peak_time[0] - kHitSearchWindow_pre;
-    finish = peak_time[0] + kHitSearchWindow_post;
-  } else {
-    start = pds_time[0] - kHitSearchWindow_pre;
-    finish = pds_time[0] + kHitSearchWindow_post;
-  }
+    if( peak_time[0] == -9999 ) return peak_time; // Skip events without coincidence/large signal (pmt sum)
+    start = Max(peak_time[0] - kHitSearchWindow_pre, 1);
+    finish = Min(peak_time[0] + kHitSearchWindow_post, (Int_t)fNSamples+1);
+  } else if( pds_time[0] != -9999 ) {
+    start = Max(pds_time[0] - kHitSearchWindow_pre, 1.);
+    finish = Min(pds_time[0] + kHitSearchWindow_post, fNSamples+1.);
+  } else return peak_time; // Skip events without coincidence/large signal (indiv. pmt)
   
   Double_t local_peak_time = peak_time[0];
-  for( UInt_t sample = start; sample < finish && sample < fNSamples; sample++ )
+  for( Int_t sample = start; sample < finish; sample++ )
     // Search for zero crossing OR threshold crossing
     if( h->GetBinContent(sample-1) * h->GetBinContent(sample) < 0 || 
 	(Abs(h->GetBinContent(sample)) >= Abs(threshold) && 
@@ -835,17 +910,17 @@ Double_t PDSAnalysis::FindEvTime(TH1F* h, Int_t peak_time)
     return ev_time;
 }
 
-Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
+std::vector<Double_t> PDSAnalysis::FindRFTime()
 {
-  Int_t start;
-  Double_t rf_time = -9999;
-  if( ev_time < 0 || ev_time > (Int_t)fNSamples )
-    start = kTrigger;
-  else
-    start = ev_time;
+  TH1F* h = GetRFMean();
+  RemoveADCOffset(h);
+  
+  Int_t start = 0;
+  Int_t end   = fNSamples;
+  std::vector<Double_t> rf_time;
 
-  // Interpolates the RF-threshold crossing time
-  for( Int_t sample = start - kBeamSearchWindow_pre; sample < start + kBeamSearchWindow_post; sample++ ) {
+  // Interpolates the RF-threshold crossing time(s)
+  for( Int_t sample = start+1; sample < end+1; sample++ ) {
     if( h->GetBinContent(sample) < -kRFThreshold 
 	&& h->GetBinContent(sample-1) > -kRFThreshold ) {
       Double_t dt = h->GetBinWidth(sample)/2;
@@ -853,16 +928,11 @@ Double_t PDSAnalysis::FindRFTime(TH1F* h, Int_t ev_time)
 			   h->GetBinLowEdge(sample+1)+dt };
       Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
                             h->GetBinContent(sample+1) };
-      rf_time = QuadraticXInterpolate( values, times, -kRFThreshold );
-      break;
+      rf_time.push_back( QuadraticXInterpolate( values, times, -kRFThreshold ) );
     }
   }
 
-  if( rf_time < 1 || rf_time > fNSamples )
-    if( rf_time != -9999 ) {
-      std::cout << "ERROR: RF time is " << rf_time * kTick_to_ns << "ns!" << std::endl;
-      return -9999;
-    }
+  h->Delete();
   return rf_time;
 }
 
@@ -905,7 +975,7 @@ Double_t PDSAnalysis::FWHM(TH1F* h, Int_t peak_time)
     return time2 - time1;
 }
 
-Double_t PDSAnalysis::SumHits(TH1F* h, std::vector<Int_t> peak_time)
+Double_t PDSAnalysis::SumHits(TH1F* h, std::vector<Int_t> &peak_time)
 {
   if( peak_time[0] == -9999 ) return -9999;
 
@@ -917,7 +987,7 @@ Double_t PDSAnalysis::SumHits(TH1F* h, std::vector<Int_t> peak_time)
   return sum;
 }
 
-Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time) 
+Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> &peak_time) 
 {
   // Only integrates the negative peaks
   Double_t integral = 0;
@@ -929,7 +999,7 @@ Double_t PDSAnalysis::NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time)
   return integral;
 }
 
-Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> peak_time)
+Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> &peak_time)
 {
   // Integrates all peaks
   Double_t integral = 0;
@@ -1057,7 +1127,7 @@ Double_t PDSAnalysis::QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double
   return value;
 }
 
-void PDSAnalysis::ConvertUnits(Int_t subevent)
+void PDSAnalysis::ConvertUnits()
 {
   for( Int_t hit = 0; hit < pds_hits; hit++ ) {
     pds_time[hit] *= kTick_to_ns;
@@ -1104,12 +1174,14 @@ void PDSAnalysis::IFFT(CArray &x)
   x /= x.size();
 }
 
-void PDSAnalysis::PrintEvent(Int_t subevent)
+void PDSAnalysis::PrintEvent()
 {
   std::cout << "Run#" << runno << "\n"
-	    << "TPC Ev#" << tpc_evno << "\t"
-	    << "Sub Ev#" << subevent << "\t"
-	    << "PDS Ev#" << pds_evno << "/" << fPMTTree->GetEntriesFast() << "\n"
+	    << "TPC trig#" << tpc_trigno << "\t"
+	    << "Sub trig#" << tpc_subtrigno << "\t"
+	    << "PDS trig#" << pds_trigno << "/" << fPMTTree->GetEntriesFast() << "\t"
+	    << "PDS evno#" << pds_evno << "\n"
+	    << "Multiplicity: " << pds_nevent << "\n"
 	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
 	    << "RF:" << Form("%.6g",rf_time * kTick_to_ns) << "\t"
 	    << "BEAM?:" << inBeamWindow << "\n"
@@ -1135,7 +1207,7 @@ void PDSAnalysis::PrintEvent(Int_t subevent)
   std::cout << std::endl;
 }
 
-void PDSAnalysis::DrawEvent(Int_t subevent)
+void PDSAnalysis::DrawEvent()
 {
   gStyle->SetOptStat(0);
   fCanvas->cd();
@@ -1154,7 +1226,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
   pmt_hists->Add(hSum);
-  RemoveADCOffset(hSum);
+  //RemoveADCOffset(hSum);
   //FFTFilter(hSum, -1);
   //MedianFilter(hSum);
   RemoveADCOffset(hSum,-50);
@@ -1162,7 +1234,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   xmax = fNSamples;
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
-  hSum->SetTitle(Form("PDS%d-TPC%d-%d",pds_evno,tpc_evno,subevent));
+  hSum->SetTitle(Form("PDS%d-TPC%d-%d.%d",pds_trigno,tpc_trigno,tpc_subtrigno,pds_evno));
   if( !pds_flag )
     hSum->SetLineColor(kGray + 2);
   else
@@ -1178,7 +1250,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
 
   if( pds_flag ) {
     RemoveADCOffset(hSum);
-    std::vector<Int_t> peak_time = FindPeaks(hSum,-1);
+    std::vector<Int_t> peak_time = FindPeaks(hSum);
     peak_time = CheckHits(hSum, peak_time);
     hSum->Scale(3.);
     RemoveADCOffset(hSum,-50);
@@ -1236,8 +1308,8 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   
   // Draw RF lines
   if( inBeamWindow ) {
-    xmin = pds_time[0] - kBeamSearchWindow_pre;
-    xmax = pds_time[0] + kBeamSearchWindow_post;
+    xmin = rf_time - kBeamSearchWindow_pre;
+    xmax = rf_time + kBeamSearchWindow_post;
 
     TLine* l_thresh = new TLine(xmin, -kRFThreshold/30-25, xmax, -kRFThreshold/30-25);
     pmt_lines->Add(l_thresh);
@@ -1256,7 +1328,7 @@ void PDSAnalysis::DrawEvent(Int_t subevent)
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TH1F* h = GetPMT(pmt);
     pmt_hists->Add(h);
-    RemoveADCOffset(h);
+    //RemoveADCOffset(h);
     //FFTFilter(h,pmt);
     //MedianFilter(h);
     RemoveADCOffset(h,pmt*20);

@@ -20,8 +20,9 @@ class PDSAnalysis
 {
  public:
   // Analysis constants
-  static const UInt_t kMaxNHits    = 200;
-  static const UInt_t kMaxNEvents  = 100;
+  //   Described in .cc file
+  static const Int_t  kMaxNHits    = 200;
+  //static const Int_t  kMaxNEvents  = 100;
   static const size_t kMaxNSamples = 2048; 
   static const size_t kNBoards     = 3;
   static const size_t kNChannels   = 6;
@@ -70,12 +71,15 @@ class PDSAnalysis
   // Output tree
   TTree* fAnalysisTree;
   // analysis variables
-  UInt_t   runno;
-  Int_t    tpc_evno;
-  UInt_t   pds_nevent;
+  Int_t    runno;
+  Int_t    tpc_trigno;
+  Int_t    pds_ntrig;
   UShort_t gps_yr, gps_d;
   UInt_t   gps_s,  gps_ns;
   
+  Int_t    pds_trigno;
+  Int_t    tpc_subtrigno;
+  Int_t    pds_nevent;
   Int_t    pds_evno;
   Int_t    pds_hits;
   Double_t pds_ratio;
@@ -119,13 +123,14 @@ class PDSAnalysis
   void   LoadCalibrationFFT();
   
   void Loop();
-  void DoEventAnalysis(Int_t start, Int_t end);
-  void DoPMTAnalysis(Int_t subevent, Int_t pmt);
-  void DoPDSAnalysis(Int_t subevent);
-  
+  void DoTrigAnalysis(Int_t start, Int_t end);
+  void DoPMTAnalysis(Int_t pmt, Double_t rf_pulse=848);
+  void DoPDSAnalysis(Double_t rf_pulse=848);
+
+  Int_t QuickCheckMult(std::vector<Double_t> &rf_pulse);
   std::vector<Int_t> CheckHits(TH1F* h, std::vector<Int_t> &peak_time);
-  Bool_t IsPMTEvent(TH1F* h, Int_t subevent, Int_t pmt, std::vector<Int_t> peak_time);
-  Bool_t IsPDSEvent(TH1F* h, Int_t subevent, std::vector<Int_t> peak_time);
+  Bool_t IsPMTEvent(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time);
+  Bool_t IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time);
 
   TH1F* GetPMT(Int_t pmt);
   TH1F* GetPMTSum(TString s="");
@@ -134,23 +139,23 @@ class PDSAnalysis
   TH1F* MedianFilter(TH1F* h);
   TH1F* FFTFilter(TH1F* h, Int_t pmt);
 
-  std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt);
+  std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt=-1);
   Double_t FindEvTime(TH1F* h, Int_t peak_time);
-  Double_t FindRFTime(TH1F* h, Int_t ev_time);
+  std::vector<Double_t> FindRFTime();
   Double_t FWHM(TH1F* h, Int_t peak_time);
-  Double_t SumHits(TH1F* h, std::vector<Int_t> peak_time);
-  Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> peak_time);
-  Double_t TotalIntegral(TH1F* h, std::vector<Int_t> peak_time);
+  Double_t SumHits(TH1F* h, std::vector<Int_t> &peak_time);
+  Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> &peak_time);
+  Double_t TotalIntegral(TH1F* h, std::vector<Int_t> &peak_time);
   Double_t Integral(TH1F* h, Int_t peak_time);
 
   Double_t QuadraticYInterpolate(Double_t x[3], Double_t y[3], Double_t p);
   Double_t QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double_t p);
 
-  void ConvertUnits(Int_t subevent);
+  void ConvertUnits();
 
   void FFT(CArray &x);
   void IFFT(CArray &x);
 
-  void PrintEvent(Int_t subevent);
-  void DrawEvent(Int_t subevent);
+  void PrintEvent();
+  void DrawEvent();
 };
