@@ -73,10 +73,10 @@ void tof_to_spectrum() {
 
   Int_t nbinsx = 200;
   Double_t xmin = 0;
-  Double_t xmax = 2.5e3;
+  Double_t xmax = 1e3;
   Int_t nbinsy = 200;
   Double_t ymin= 0;
-  Double_t ymax= 2e2;
+  Double_t ymax= 8e2;
 
   TF1* tofFromEnergy = new TF1("tofFromEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)*1e9",10,800);
   tofFromEnergy->FixParameter(0, tof_length);
@@ -91,7 +91,7 @@ void tof_to_spectrum() {
   Double_t energy_err;
   TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
   TH2F* h_peak = new TH2F("h_peak",";Neutron E_{kin} (MeV);PDS response (pe)",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
-  TH2F* h_integral = new TH2F("h_integral",";Neutron E_{kin} (MeV);Integrated charge (pe ns)",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
+  TH2F* h_integral = new TH2F("h_integral",";Neutron E_{kin} (MeV);Integrated charge (pe)",nbinsx,xmin,xmax,nbinsy,ymin,ymax);
 
   TH1F* h_spectrum_corr = new TH1F("h_spectrum_corr",";Neutron E_{kin} (MeV);Count",nbinsx,xmin,xmax);
 
@@ -115,7 +115,7 @@ void tof_to_spectrum() {
 	if( pmt_flag[pmt] ) {
 	  for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
 	    if( pmt_time[pmt][hit] >= pmt_time[pmt][0] ) { 
-	      integral_sum += pmt_integral[pmt][hit] * kIntToPE;
+	      integral_sum += pmt_integral[pmt][hit];
 	    }
 	  }
 	}

@@ -16,6 +16,7 @@
 #include <TLine.h>
 #include <TGraph.h>
 #include <TStyle.h>
+#include <TLatex.h>
 
 #include "PDSAnalysis.h"
 
@@ -1249,13 +1250,16 @@ void PDSAnalysis::PrintEvent()
 
 void PDSAnalysis::DrawEvent()
 {
+  TLatex latex;
   gStyle->SetOptStat(0);
   fCanvas->cd();
+  //fCanvas->SetRightMargin(0.25);
   //fCanvas->SetGridx();
   //fCanvas->SetGridy();
 
   TObjArray* pmt_hists = new TObjArray();
   TObjArray* pmt_lines = new TObjArray();
+  //TLegend* leg = new TLegend(0.75,0.5,0.95,0.95);
 
   Double_t xmin = 0;
   Double_t xmax = fNSamples;
@@ -1266,7 +1270,8 @@ void PDSAnalysis::DrawEvent()
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
   pmt_hists->Add(hSum);
-  //RemoveADCOffset(hSum);
+  RemoveADCOffset(hSum);
+  hSum->Scale(3.);
   //FFTFilter(hSum, -1);
   //MedianFilter(hSum);
   RemoveADCOffset(hSum,-50);
@@ -1275,11 +1280,14 @@ void PDSAnalysis::DrawEvent()
   hSum->GetXaxis()->SetRangeUser(xmin,xmax);
   hSum->GetYaxis()->SetRangeUser(ymin,ymax);
   hSum->SetTitle(Form("PDS%d-TPC%d-%d.%d",pds_trigno,tpc_trigno,tpc_subtrigno,pds_evno));
+  hSum->GetXaxis()->SetTitle("Sample (4ns ea.)");
+  hSum->GetYaxis()->SetTitle("ADC count");
   if( !pds_flag )
     hSum->SetLineColor(kGray + 2);
   else
     hSum->SetLineColor(kBlue + 2);
   hSum->Draw("l");
+  latex.DrawLatex(.05*fNSamples,-50+5,"#scale[0.5]{#font[4]{PMT sum x3 (Weighted by PMT gain)}}");
 
   // Draw PDS lines
   TLine* l_trig = new TLine(kTrigger, ymin, kTrigger, ymax);
@@ -1290,6 +1298,7 @@ void PDSAnalysis::DrawEvent()
 
   if( pds_flag ) {
     RemoveADCOffset(hSum);
+    hSum->Scale(1./3.);
     std::vector<Int_t> peak_time = FindPeaks(hSum);
     peak_time = CheckHits(hSum, -1, peak_time);
     hSum->Scale(3.);
@@ -1313,15 +1322,15 @@ void PDSAnalysis::DrawEvent()
     g_peak->SetMarkerSize(0.7);
     g_peak->Draw("same p");
 
-    TLine* l_threshold1 = new TLine(xmin, kSumThreshold*3-50, xmax, kSumThreshold*3-50);
+    //TLine* l_threshold1 = new TLine(xmin, kSumThreshold*3-50, xmax, kSumThreshold*3-50);
     TLine* l_threshold2 = new TLine(xmin, -kSumThreshold*3-50, xmax, -kSumThreshold*3-50);
-    pmt_lines->Add(l_threshold1);
+    //pmt_lines->Add(l_threshold1);
     pmt_lines->Add(l_threshold2);
-    l_threshold1->SetLineColor(kBlue + 2);
+    //l_threshold1->SetLineColor(kBlue + 2);
     l_threshold2->SetLineColor(kBlue + 2);
-    l_threshold1->SetLineStyle(2);
+    //l_threshold1->SetLineStyle(2);
     l_threshold2->SetLineStyle(2);
-    l_threshold1->Draw("same");
+    //l_threshold1->Draw("same");
     l_threshold2->Draw("same");
     
     TLine* l_time = new TLine(pds_time[0], ymin, pds_time[0], ymax);
@@ -1345,6 +1354,7 @@ void PDSAnalysis::DrawEvent()
   else
     hRF->SetLineColor(kRed + 2);
   hRF->Draw("l same");
+  latex.DrawLatex(.05*fNSamples,-25+5,"#scale[0.5]{#font[4]{Accelerator RF pulse mean x1/15}}");
   
   // Draw RF lines
   if( inBeamWindow ) {
@@ -1381,6 +1391,7 @@ void PDSAnalysis::DrawEvent()
     else
       h->SetLineColor(kBlue);
     h->Draw("l same");
+    latex.DrawLatex(.05*fNSamples,pmt*20+5,Form("#scale[0.5]{#font[4]{PMT#%d}}",pmt));
 
     // Draw PMT lines
     if( pmt_flag[pmt] ) {
@@ -1407,15 +1418,15 @@ void PDSAnalysis::DrawEvent()
       g_peak->SetMarkerSize(0.5);
       g_peak->Draw("same p");
 
-      TLine* l_threshold1 =new TLine(xmin, kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
-      TLine* l_threshold2 = new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
-      pmt_lines->Add(l_threshold1);
+      //TLine* l_threshold1 =new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, +kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
+      TLine* l_threshold2 = new TLine(xmin, kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
+      //pmt_lines->Add(l_threshold1);
       pmt_lines->Add(l_threshold2);
-      l_threshold1->SetLineColor(kBlue);
+      //l_threshold1->SetLineColor(kBlue);
       l_threshold2->SetLineColor(kBlue);
-      l_threshold1->SetLineStyle(3);
+      //l_threshold1->SetLineStyle(3);
       l_threshold2->SetLineStyle(3);
-      l_threshold1->Draw("same");
+      //l_threshold1->Draw("same");
       l_threshold2->Draw("same");
       
       //TLine* l_time = new TLine(pmt_time[pmt][0], ymin, pmt_time[pmt][0], ymax);
