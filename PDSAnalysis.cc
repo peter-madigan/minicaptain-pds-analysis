@@ -590,12 +590,12 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
       backward_ratio = -h->GetBinContent(peak_time[i-1])/h->GetBinContent(peak_time[i]);
       backward_dt = Abs( peak_time[i-1] - peak_time[i] );
     }
-
+    
     if( forward_ratio > kRatioThreshold && forward_dt < 10 ) 
       cut_hit[i] = true;
     else if( backward_ratio > kRatioThreshold && backward_dt < 10 )
       cut_hit[i] = true;
-    else if( h->GetBinContent(peak_time[i]) > 0 )
+    else if( h->GetBinContent(peak_time[i]) >= 0 )
       cut_hit[i] = true;
     else 
       cut_hit[i] = false;
@@ -798,12 +798,16 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
 	  } */
     // Band-pass filter
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
-      if( i >= (Int_t)fNSamples / 2 - 1 )
+      if( i == (Int_t)fNSamples / 2 )
 	fft[i] = 0;
-      else if( i == 512 ) // lots of noise at this freq
-	fft[i] = 0;
-      else if( i == 131)
-	fft[i] = 0;
+    else if( Abs(1.*fNSamples-i) == 512 || i == 512 ) // lots of noise at this freq
+      fft[i] = fft[i] / (Complex)(12);
+    else if( i < 260 && i > 230 )
+      fft[i] = fft[i] / (Complex)(Abs(245-i)+1);
+    else if( Abs(1.*fNSamples-i) < 260 && Abs(1.*fNSamples-i) > 230 )
+      fft[i] = fft[i] / (Complex)(Abs(-1.*fNSamples+i+245)+1);
+    else if( Abs(1.*fNSamples-i) == 131 || i == 131 ) // lots of noise at this freq
+      fft[i] = fft[i] / (Complex)(12);
     //else if( i > 512 ) // high freq filter
     //fft[i] = fft[i] / (Complex)(i-512);
     
@@ -1287,7 +1291,7 @@ void PDSAnalysis::DrawEvent()
   else
     hSum->SetLineColor(kBlue + 2);
   hSum->Draw("l");
-  latex.DrawLatex(.05*fNSamples,-50+5,"#scale[0.5]{#font[4]{PMT sum x3 (Weighted by PMT gain)}}");
+  latex.DrawLatex(.02*fNSamples,-50+5,"#scale[0.4]{#font[4]{PMT sum (scaled)}}");
 
   // Draw PDS lines
   TLine* l_trig = new TLine(kTrigger, ymin, kTrigger, ymax);
@@ -1319,7 +1323,7 @@ void PDSAnalysis::DrawEvent()
     pmt_hists->Add(g_peak);
     g_peak->SetMarkerStyle(24);
     g_peak->SetMarkerColor(kRed);
-    g_peak->SetMarkerSize(0.7);
+    g_peak->SetMarkerSize(0.3);
     g_peak->Draw("same p");
 
     //TLine* l_threshold1 = new TLine(xmin, kSumThreshold*3-50, xmax, kSumThreshold*3-50);
@@ -1354,7 +1358,7 @@ void PDSAnalysis::DrawEvent()
   else
     hRF->SetLineColor(kRed + 2);
   hRF->Draw("l same");
-  latex.DrawLatex(.05*fNSamples,-25+5,"#scale[0.5]{#font[4]{Accelerator RF pulse mean x1/15}}");
+  latex.DrawLatex(.02*fNSamples,-25+5,"#scale[0.4]{#font[4]{RF pulse (scaled)}}");
   
   // Draw RF lines
   if( inBeamWindow ) {
@@ -1391,7 +1395,7 @@ void PDSAnalysis::DrawEvent()
     else
       h->SetLineColor(kBlue);
     h->Draw("l same");
-    latex.DrawLatex(.05*fNSamples,pmt*20+5,Form("#scale[0.5]{#font[4]{PMT#%d}}",pmt));
+    latex.DrawLatex(.02*fNSamples,pmt*20+5,Form("#scale[0.4]{#font[4]{PMT#%d}}",pmt+1));
 
     // Draw PMT lines
     if( pmt_flag[pmt] ) {
@@ -1415,7 +1419,7 @@ void PDSAnalysis::DrawEvent()
       pmt_hists->Add(g_peak);
       g_peak->SetMarkerStyle(24);
       g_peak->SetMarkerColor(kRed);
-      g_peak->SetMarkerSize(0.5);
+      g_peak->SetMarkerSize(0.2);
       g_peak->Draw("same p");
 
       //TLine* l_threshold1 =new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, +kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
@@ -1438,12 +1442,13 @@ void PDSAnalysis::DrawEvent()
   }
 
   // FFT
-  /*  TCanvas* c = new TCanvas();
+  /*TCanvas* c = new TCanvas();
   Complex waveform[fNSamples];
   RemoveADCOffset(hSum);
-  TH1F* h_re = new TH1F("FFT_re","FFT;freq (Hz);Amp.",fNSamples,-kSampleRate/2,kSampleRate/2);
-  TH1F* h_im = new TH1F("FFT_im","FFT;freq (Hz);Amp.",fNSamples,-kSampleRate/2,kSampleRate/2);
-  TH1F* h_abs = new TH1F("FFT","FFT;freq (Hz);Amp.",fNSamples,-kSampleRate/2,kSampleRate/2);
+  //FFTFilter(hSum, -1);
+  TH1F* h_re = new TH1F("FFT_re","FFT;i (122 kHz);Amp.",fNSamples,-1.*fNSamples/2,fNSamples/2);
+  TH1F* h_im = new TH1F("FFT_im","FFT;i (122 kHz);Amp.",fNSamples,-1.*fNSamples/2,fNSamples/2);
+  TH1F* h_abs = new TH1F("FFT","FFT;i (122 kHz);Amp.",fNSamples,-1.*fNSamples/2,fNSamples/2);
   h_im->SetLineColor(kRed+2);
   h_abs->SetLineColor(kBlack);
   pmt_hists->Add(h_re);
@@ -1469,7 +1474,7 @@ void PDSAnalysis::DrawEvent()
   h_re->Draw("l same");
   h_im->Draw("l same");
   c->Update();
-  RemoveADCOffset(hSum,-50); */
+  RemoveADCOffset(hSum,-50);  */
 
   fCanvas->Update();
 
