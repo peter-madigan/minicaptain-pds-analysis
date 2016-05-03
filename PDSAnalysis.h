@@ -111,6 +111,7 @@ class PDSAnalysis
   Bool_t   fCalibration;
   Bool_t   fViewerMode;
   Bool_t   fStoreAll;
+  Bool_t   fRateMode;
   std::vector<TH1F*>  fMeanWaveform;
   std::vector< std::vector<TH1F*> > fCalibrationFFT;
 

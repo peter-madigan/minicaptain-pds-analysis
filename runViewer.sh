@@ -1,6 +1,6 @@
 #!/bin/bash
 datadir=/project/projectdirs/captain/data/2016/pmt/2016WNRRun2
-#datadir=/project/projectdirs/captain/data/2016/pmt/Cosmic
+datadir=/project/projectdirs/captain/data/2016/pmt/Cosmic
 fileno=0
 
 if [ ! $@ ]; then

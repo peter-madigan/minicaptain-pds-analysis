@@ -174,7 +174,7 @@ void nitrogen() {
 	     << "Time: " << gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24 << endl;
       
       // Cut events
-      if( !inBeamWindow && pds_flag && pds_nevent == 1 && pds_integral[0] > 1 ) {
+      if( !inBeamWindow && pds_flag && pds_nevent == 1 && pds_integral[0] > 5 ) {
 	// Loop over PDS
 	//Double_t TOF = pds_time[0] - rf_time - kDelay;
 	Double_t TOF_hit = 0;

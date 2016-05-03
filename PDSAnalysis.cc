@@ -103,11 +103,18 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, TString 
   fCalibration = opt.Contains('c');
   fViewerMode  = opt.Contains('v');
   fStoreAll    = opt.Contains('s');
-  
+  fRateMode    = opt.Contains('r');
+
   if( fStoreAll )
     std::cout << "All triggers will be stored!" << std::endl;
-  else
-    std::cout << "Only pds events >" << kSumThreshold << "pe will be stored." << std::endl;
+  
+  if( fRateMode ) {
+    fStoreAll = true;
+    std::cout << "Running in rate mode..." << "\n"
+	      << "All events will be stored using a fixed search window of size: "
+	      << (kHitSearchWindow_pre + kHitSearchWindow_post) * kTick_to_ns << "ns" << std::endl;
+  } else
+    std::cout << "Only pds events >" << kSumThreshold << "pe will be flagged." << std::endl;
 
   if( fViewerMode ) {
     std::cout << "Running in viewer mode..." << std::endl;
@@ -436,7 +443,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
   peak_time = CheckHits(hPMT, pmt, peak_time);
   if( (Int_t)peak_time.size() < kMaxNHits ) pmt_hits[pmt] = peak_time.size();
-  else                               pmt_hits[pmt] = kMaxNHits; 
+  else                                      pmt_hits[pmt] = kMaxNHits; 
 
   if( peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
@@ -568,7 +575,7 @@ Int_t PDSAnalysis::QuickCheckMult(std::vector<Double_t> &rf_pulse)
 std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time) 
 {
   if( peak_time[0] < 0 ) return peak_time;
-  if( peak_time.size() == 1 ) return peak_time;
+  if( peak_time.size() == 1 && h->GetBinContent(peak_time[0]) < 0 ) return peak_time;
   
   // Sort peaks in order of time
   Double_t prompt_time;
@@ -860,7 +867,10 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   if( fCalibration )
     threshold = 1.0;
   else if( pmt < 0 )
-    threshold = -kSumThreshold;
+    if( fRateMode )
+      threshold = -kPMTThreshold; // Don't set a sum threshold
+    else
+      threshold = -kSumThreshold;
   else
     threshold = kPMTThreshold / kADC_to_pe[pmt];
   
@@ -872,6 +882,9 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
     if( fCalibration ) {
       start = 850;
       finish = 1000;
+    } else if ( fRateMode ) {
+      start = kTrigger - 5;//kHitSearchWindow_pre;
+      finish = kTrigger + 5;//kHitSearchWindow_post;
     } else if ( rf_time != -9999 ){
       start = Max(rf_time - kBeamSearchWindow_pre, 1.);
       finish = Min(rf_time + kBeamSearchWindow_post, fNSamples+1.);
@@ -893,6 +906,9 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   if( fCalibration ) {
     start = 850;
     finish = 1000;
+  } else if( fRateMode ) {
+    start = kTrigger - kHitSearchWindow_pre;                                      
+    finish = kTrigger + kHitSearchWindow_post;
   } else if( pmt < 0 ) {
     if( peak_time[0] == -9999 ) return peak_time; // Skip events without coincidence/large signal (pmt sum)
     start = Max(peak_time[0] - kHitSearchWindow_pre, 1);
