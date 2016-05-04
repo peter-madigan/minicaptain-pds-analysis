@@ -32,7 +32,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
 const Double_t PDSAnalysis::kSumThreshold      = 3.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
+const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
 const Double_t PDSAnalysis::kIntegralThreshold_pmt = 7.0; // ADC ticks
 const Double_t PDSAnalysis::kIntegralThreshold_pds = 2.0; // pe ns
 const Double_t PDSAnalysis::kWidthThreshold    = 6.0/4.0; // ticks

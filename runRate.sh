@@ -10,7 +10,7 @@ root -q -b PDSAnalysis.cc+
 
 # rate calibration
 
-runs=( 9993 )
+runs=( 9986 )
 
 for runno in "${runs[@]}"; do
     echo "Checking for run $runno..."
@@ -19,12 +19,13 @@ for runno in "${runs[@]}"; do
         i=0
         mkdir -v $outdir/pdsTree$runno
         for infile in `ls "$datadir/run$runno"`; do
-            if [ -f "$infile" ] && [ -s "$infile" ] && [ "${infile: -5}" == ".root" ]; then
-                root -q -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",\"s r\")"
+	    echo "Checking file $infile..."
+            if [ "${infile: -5}" == ".root" ]; then
+                root -q -l -b "PDSAnalysis.cc+(\"$datadir/run$runno/$infile\",$runno,\"$outdir/pdsTree$runno/pdsEvTree_$i.root\",\"s r\")"
                 let "i++"
             fi
         done
     fi
 done
 
-root macros/pmt_rate.C
+root -l macros/pmt_rate.C
