@@ -7,7 +7,7 @@ void pmt_rate(){
   Bool_t   pmt_flag[kNPMTs];
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
-  ch->Add("calib/pdsTree9986/pdsEvTree*");
+  ch->Add("calib/pdsTree9993/pdsEvTree*");
   
   ch->SetBranchStatus("*", kFALSE);
 
@@ -17,7 +17,7 @@ void pmt_rate(){
   ch->SetBranchStatus("pmt_hits",kTRUE);
   ch->SetBranchStatus("pmt_flag",kTRUE);
 
-  TH1F* h = new TH1F("h",";pmt;rate (Hz)",16000,0,16);
+  TH1F* h = new TH1F("h",";pmt;rate (Hz)",15,1,16);
   h->Sumw2();
 
   Double_t n = (Double_t)ch->GetEntries();
@@ -29,7 +29,8 @@ void pmt_rate(){
 	  cout << "Big event!\t" << i << "\t" << pmt_hits[pmt] << "hits!" << endl;
 	  continue;
 	}
-	Double_t part_rate = pmt_hits[pmt] / n / (250 + 800) / 4e-9;
+	if( pmt_hits[pmt] > 1 ) continue;
+	Double_t part_rate = pmt_hits[pmt] / n / (250 + 800) / 4e-9 * 2;
 	h->Fill(pmt+1, part_rate);
       }
   

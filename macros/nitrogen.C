@@ -54,7 +54,7 @@ void nitrogen() {
   
   // Set up chains for runs
   static const Int_t start_run = 6166;
-  static const Int_t end_run   = 6403;
+  static const Int_t end_run   = 6405;
   static const Int_t nch = (end_run - start_run)/10 + 1;
   static const Int_t nrun = 10;
   TObjArray* ch = new TObjArray();
@@ -68,6 +68,7 @@ void nitrogen() {
     if( ich == nch-1 ) break;
     cout << "Chain #" << ich << " contains runs ( ";
     for( int j = 0; j < nrun && i+j <= end_run && ich < nch-1; j++ ) {
+      if( i+j <= 6404 && i+j >= 6379 ) continue;
       cout << i+j << " ";
       ((TChain*)ch->At(ich))->Add(Form("data/pdsTree%04d/pds*",i+j));
     }
@@ -82,7 +83,7 @@ void nitrogen() {
   cout << ")..." << endl;
   
   // Set up plots
-  Int_t nbins = 25;
+  Int_t nbins = 100;
   Double_t tmin = 0;
   Double_t tmax = 3.2e3;
   Double_t rmin = 0.2;			  
@@ -101,8 +102,8 @@ void nitrogen() {
   // Set up fit
   vector<TFitResultPtr> fit;
   vector<TFitResultPtr> fit_ratio;
-  TF1* fit_func = new TF1("fit","exp([0]-x/[1])",500,2500);
-  fit_func->SetParameters(2,1000);
+  TF1* fit_func = new TF1("fit","exp([0]-x/[1])+[2]",500,2500);
+  fit_func->SetParameters(2,1000,0);
   fit_func->SetParLimits(1,0.1,1e5);
 
   // Set branches
@@ -183,15 +184,15 @@ void nitrogen() {
 	for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
 	  if( pmt_flag[pmt] ) {
 	    if( Abs(pmt_time[pmt][0]-pds_time[0]) < 30 )
-	      singlet += pmt_integral[pmt][0];
+	      singlet += pmt_peak[pmt][0];
 	    for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
 	      TOF_hit = pmt_time[pmt][j] - pds_time[0];
 	      if( pmt_time[pmt][j] > pds_time[0] && 1)
 		//TOF < 103.28+77.267 && TOF > 14.54+77.267) ) // approx 100MeV - 800MeV
-		((TH1F*)hist_lifetime->At(ich))->Fill(TOF_hit,pmt_integral[pmt][j]);
+		((TH1F*)hist_lifetime->At(ich))->Fill(TOF_hit,pmt_peak[pmt][j]);
 	      if( pmt_time[pmt][j] > pds_time[0] &&
 		  Abs(pmt_time[pmt][j]-pds_time[0]) > 30)
-		triplet += pmt_integral[pmt][j];
+		triplet += pmt_peak[pmt][j];
 	    }
 	  }
 	}
@@ -215,9 +216,9 @@ void nitrogen() {
     fit_ratio.push_back( ((TH1F*)hist_ratio->At(ich))->Fit("gaus","sq") );
     cout << "Ratio fit: " << (Int_t)fit_ratio[fit_ratio.size()-1] << endl;
     
-    //(TH1F*)hist_ratio->At(ich)->TH1F::Draw("e");    
-    //c1->SetLogy();
-    //c1->Update();
+    hist_ratio->At(ich)->Draw("e");    
+    c1->SetLogy();
+    c1->Update();
 
     hist_lifetime->At(ich)->Draw("e");
     c1->SetLogy();
@@ -363,7 +364,7 @@ vector<Double_t> GetO2AndError(TFitResultPtr& f) {
 
   Double_t kQN2 = 0.000110;
   Double_t kQN2_err = 0.000010;
-  Double_t N2 = 4.3;
+  Double_t N2 = 2.4;
   Double_t N2_err = 0.5;
 
   O2[0] = (1 / tau1 - 1 / tau0 - kQN2 * N2) / kQ;

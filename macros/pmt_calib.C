@@ -19,12 +19,12 @@ void pmt_calib() {
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
   ch->Add("calib/pdsTree9989/pdsEvTree*");
-  //ch->Add("calib/pdsTree9990/pdsEvTree*");
-  //ch->Add("calib/pdsTree9991/pdsEvTree*");
-  //ch->Add("calib/pdsTree9992/pdsEvTree*");
-  //ch->Add("calib/pdsTree9994/pdsEvTree*");
-  //ch->Add("calib/pdsTree9995/pdsEvTree*");
-  //ch->Add("calib/pdsTree9996/pdsEvTree*");
+  ch->Add("calib/pdsTree9990/pdsEvTree*");
+  ch->Add("calib/pdsTree9991/pdsEvTree*");
+  ch->Add("calib/pdsTree9992/pdsEvTree*");
+  ch->Add("calib/pdsTree9994/pdsEvTree*");
+  ch->Add("calib/pdsTree9995/pdsEvTree*");
+  ch->Add("calib/pdsTree9996/pdsEvTree*");
 
   Int_t    pmt_hits[kNPMTs];
   Double_t pmt_peak[kNPMTs][kMaxNHits];
@@ -56,7 +56,7 @@ void pmt_calib() {
  
   for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TString name_int = Form("PMT%d_integral",pmt+1);
-    h_int->Add(new TH1F(name_int,name_int+";integral;count",100,-100,0));
+    h_int->Add(new TH1F(name_int,name_int+";integral;count",100,-50,0));
     ((TH1F*)h_int->At(pmt))->Sumw2();
 
     TString name_peak = Form("PMT%d_height",pmt+1);
@@ -68,22 +68,22 @@ void pmt_calib() {
     ((TH1F*)h_bl->At(pmt))->Sumw2();
   }
   
-  TF1* gaus = new TF1("gaussian","gaus(0)",-1e3,1e3);
+  TF1* gaus = new TF1("gaussian","gaus(0)+gaus(3)",-1e4,1e4);
   ch->GetEntry(0);
   for( Int_t i = 0; ch->GetEntry(i); i++ ) {
     if( i%(ch->GetEntries()/10) == 0 ) cout << i << " of " << ch->GetEntriesFast() << endl;
     
-    Int_t occu = 0;
+    Double_t occu = 0;
     for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-      h_all->Fill(pmt_ratio[pmt]);
-      if( pmt_flag[pmt] ) h_notNoise->Fill(pmt_ratio[pmt]);
-      else                h_noise->Fill(pmt_ratio[pmt]);
+      h_all->Fill(pmt_peak[pmt][0]);
+      if( pmt_flag[pmt] ) h_notNoise->Fill(pmt_peak[pmt][0]);
+      else                h_noise->Fill(pmt_peak[pmt][0]);
       
-      if( pmt_flag[pmt] ) {
+      if( pmt_flag[pmt] && pmt_hits[pmt] > 1) {
 	for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
 	  ((TH1F*)h_peak->At(pmt))->Fill(pmt_peak[pmt][hit]);
 	  ((TH1F*)h_int->At(pmt))->Fill(pmt_integral[pmt][hit]);
-	  occu++;
+	  occu += 1;
 	}
       }
       
@@ -94,12 +94,16 @@ void pmt_calib() {
   
   for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     // peak fit
+    Double_t norm = 1./((TH1F*)h_peak->At(pmt))->Integral();
+    ((TH1F*)h_peak->At(pmt))->Scale(norm);
     Double_t low_edge = -25;
-    Double_t high_edge =  -5;
+    Double_t high_edge =  0;
     gaus -> SetRange(low_edge, high_edge);
-    gaus->SetParameters(1e3,-5,5);
-    gaus->SetParLimits(0,0,1e7);
-    gaus->SetParLimits(1,low_edge,0);
+    gaus->SetParameters(1,0,1,0.001,0,4);
+    gaus->SetParLimits(0,0.1,2);
+    gaus->SetParLimits(1,-2,0);
+    gaus->SetParLimits(3,0,0.1);
+    gaus->SetParLimits(4,low_edge,0);
 
     c_peak->cd(1+pmt)->SetLogy();
     std::cout << std::endl;
@@ -125,14 +129,14 @@ void pmt_calib() {
     low_edge =  -50;
     high_edge =   0;
     gaus -> SetRange(low_edge, high_edge);
-    gaus->SetParameters(1e3,-15,10);
-    gaus->SetParLimits(0,0,1e10);
+    gaus->SetParameters(1,0,1);
+    gaus->SetParLimits(0,0.1,1);
     gaus->SetParLimits(1,low_edge,-10);
 
     c_int->cd(1+pmt)->SetLogy();
     //((TH1F*)h_int->At(pmt))->Fit("gaussian","r");
-    ((TH1F*)h_int->At(pmt))->Draw("e");
-    c_int->Update();
+    //((TH1F*)h_int->At(pmt))->Draw("e");
+    //c_int->Update();
 
     // baseline fit                
     std::cout << "~~~\t" << "Baseline #" << pmt+1 << "\t~~~" << std::endl;
@@ -148,7 +152,7 @@ void pmt_calib() {
         
     c_bl->cd(1+pmt)->SetLogy();
     //((TH1F*)h_bl->At(pmt))->Fit("gaussian","r");
-    ((TH1F*)h_bl->At(pmt))->Draw("e");
+    //((TH1F*)h_bl->At(pmt))->Draw("e");
   }
 
   // Occupancy

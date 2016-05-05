@@ -10,7 +10,7 @@ root -q -b PDSAnalysis.cc+
 
 # rate calibration
 
-runs=( 9986 )
+runs=( 9993 )
 
 for runno in "${runs[@]}"; do
     echo "Checking for run $runno..."

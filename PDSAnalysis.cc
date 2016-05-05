@@ -32,7 +32,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
 const Double_t PDSAnalysis::kSumThreshold      = 3.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
+const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kIntegralThreshold_pmt = 7.0; // ADC ticks
 const Double_t PDSAnalysis::kIntegralThreshold_pds = 2.0; // pe ns
 const Double_t PDSAnalysis::kWidthThreshold    = 6.0/4.0; // ticks
@@ -51,22 +51,22 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
   kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
-  kADC_to_pe.push_back(-1./7.565); // #2
-  kADC_to_pe.push_back(-1./7.667); // #3
-  kADC_to_pe.push_back(-1./7.000); // #4
-  kADC_to_pe.push_back(-1./8.200); // #5
+  kADC_to_pe.push_back(-1./0.048); // #2
+  kADC_to_pe.push_back(-1./0.057); // #3
+  kADC_to_pe.push_back(-1./0.330); // #4
+  kADC_to_pe.push_back(-1./7.009); // #5
 
-  kADC_to_pe.push_back(-1./7.483); // #6
-  kADC_to_pe.push_back(-1./7.688); // #7
-  kADC_to_pe.push_back(-1./8.000); // #8 
-  kADC_to_pe.push_back(-1./8.833); // #9
-  kADC_to_pe.push_back(-1./8.625); // #10
+  kADC_to_pe.push_back(-1./0.186); // #6
+  kADC_to_pe.push_back(-1./0.568); // #7
+  kADC_to_pe.push_back(-1./0.002); // #8 
+  kADC_to_pe.push_back(-1./6.260); // #9
+  kADC_to_pe.push_back(-1./5.192); // #10
 
-  kADC_to_pe.push_back(-1./7.056); // #11
-  kADC_to_pe.push_back(-1./7.418); // #12
-  kADC_to_pe.push_back(-1./8.388); // #13
-  kADC_to_pe.push_back(-1./7.432); // #14
-  kADC_to_pe.push_back(-1./7.889); // #15
+  kADC_to_pe.push_back(-1./0.346); // #11
+  kADC_to_pe.push_back(-1./0.124); // #12
+  kADC_to_pe.push_back(-1./0.025); // #13
+  kADC_to_pe.push_back(-1./0.380); // #14
+  kADC_to_pe.push_back(-1./4.917); // #15
 
   if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
@@ -274,7 +274,7 @@ void PDSAnalysis::Loop()
   tpc_trigno = 0;
   UInt_t i = 0; // TPC start variable
   UInt_t j = 1; // TPC end variable
-  if( !fCalibration ) {
+  if( !fCalibration && !fRateMode ) {
     while( fPMTTree->GetEntry(i) ) {
       // Check if current trig has a gps signature
       TPC0 = (fGPS_s + fGPS_ns > 0);
