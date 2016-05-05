@@ -36,9 +36,6 @@ class PDSAnalysis
   static const Double_t kSumThreshold;
   static const Double_t kRFThreshold;
   static const Double_t kPMTThreshold;
-  static const Double_t kIntegralThreshold_pmt;
-  static const Double_t kIntegralThreshold_pds;
-  static const Double_t kWidthThreshold;
   static const Double_t kRatioThreshold;
 
   static const Int_t kPeakSearchWindow_pre;
@@ -52,7 +49,7 @@ class PDSAnalysis
   static const Double_t kTPCGateWidth;
   
   std::vector<Double_t> kADC_to_pe;
-  std::vector<Double_t> kADCns_to_pe;
+  std::vector<Double_t> kADCtick_to_pe;
   static const Double_t kTick_to_ns;
   
   // Input tree
@@ -120,7 +117,7 @@ class PDSAnalysis
   ~PDSAnalysis();
 
   void InitializeADC_to_pe();
-  void InitializeADCns_to_pe();
+  void InitializeADCtick_to_pe();
   TTree* ImportTree(TString fiName);
   TTree* SetupNewTree(TString foName);
   void   LoadCalibrationFFT();
