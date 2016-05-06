@@ -19,12 +19,12 @@ void pmt_calib() {
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
   ch->Add("calib/pdsTree9989/pdsEvTree*");
-  //ch->Add("calib/pdsTree9990/pdsEvTree*");
-  //ch->Add("calib/pdsTree9991/pdsEvTree*");
+  ch->Add("calib/pdsTree9990/pdsEvTree*");
+  ch->Add("calib/pdsTree9991/pdsEvTree*");
   ch->Add("calib/pdsTree9992/pdsEvTree*");
   ch->Add("calib/pdsTree9994/pdsEvTree*");
   ch->Add("calib/pdsTree9995/pdsEvTree*");
-  //ch->Add("calib/pdsTree9996/pdsEvTree*");
+  ch->Add("calib/pdsTree9996/pdsEvTree*");
 
   Int_t    pmt_hits[kNPMTs];
   Double_t pmt_peak[kNPMTs][kMaxNHits];
@@ -79,7 +79,7 @@ void pmt_calib() {
       if( pmt_flag[pmt] ) h_notNoise->Fill(pmt_peak[pmt][0]);
       else                h_noise->Fill(pmt_peak[pmt][0]);
       
-      if( pmt_flag  && pmt_hits[pmt] < 2 )
+      if( pmt_flag  && pmt_hits[pmt] > 0 )
       for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
 	((TH1F*)h_peak->At(pmt))->Fill(pmt_peak[pmt][hit]);
 	((TH1F*)h_int->At(pmt))->Fill(pmt_integral[pmt][hit]);
@@ -93,7 +93,6 @@ void pmt_calib() {
   
   for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     // peak fit
-    
     Double_t norm = 1./((TH1F*)h_peak->At(pmt))->Integral();
     ((TH1F*)h_peak->At(pmt))->Scale(norm);
     Double_t low_edge = -25;
@@ -112,7 +111,6 @@ void pmt_calib() {
     ((TH1F*)h_peak->At(pmt))->Fit("gaussian","r");
     ((TH1F*)h_peak->At(pmt))->Draw("e");
     c_peak->Update();
-
     
     Double_t mean = 0;
     Double_t n = 0;
@@ -124,7 +122,6 @@ void pmt_calib() {
     mean = mean/n;
     std::cout << "Mean across (" << low_edge << ", " << high_edge << "):\n"
 	      << mean << std::endl;
-    
     
     // integral fit
     std::cout << "~~~\t" << "Integral #" << pmt+1 << "\t~~~" << std::endl;

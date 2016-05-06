@@ -27,5 +27,5 @@ while [ "$progress" != "" ]; do
     sleep 10
     progress=`qstat -u pmadigan`
 done
-root -q -l -b macros/pmt_calib.C
+root -l macros/pmt_calib.C
 

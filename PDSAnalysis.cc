@@ -436,7 +436,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, pmt);
-  GausFilter(hPMT);
+  //GausFilter(hPMT);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -484,7 +484,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   pds_offset = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, -1);
-  GausFilter(hPMT);
+  //GausFilter(hPMT);
 
   // Check beam                                          
   if( rf_pulse != 848 ) rf_time = rf_pulse;
@@ -868,7 +868,7 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = 3;
+    threshold = -2;
   else if( pmt < 0 )
     if( fRateMode )
       threshold = -kPMTThreshold; // Don't set a sum threshold
