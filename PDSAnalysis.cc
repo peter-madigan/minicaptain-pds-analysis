@@ -30,9 +30,9 @@ const Double_t PDSAnalysis::kPi = Pi();
 const Int_t    PDSAnalysis::kTrigger        = 848;
 const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
-const Double_t PDSAnalysis::kSumThreshold      = 2.00; // pe
+const Double_t PDSAnalysis::kSumThreshold      = 3.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
+const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
 const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
@@ -436,7 +436,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, pmt);
-  //MedianFilter(hPMT);
+  //GausFilter(hPMT);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -453,7 +453,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
       pmt_peak[pmt][hit] = hPMT->GetBinContent(peak_time[hit]);
       pmt_FWHM[pmt][hit] = FWHM(hPMT, peak_time[hit]);
       pmt_time[pmt][hit] = FindEvTime(hPMT, peak_time[hit]);
-      pmt_integral[pmt][hit] = Integral(hPMT, peak_time[hit]);
+      pmt_integral[pmt][hit] = FixedIntegral(hPMT, peak_time[hit]);
     }
   } else {
     pmt_ratio[pmt] = -9999;
@@ -484,7 +484,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   pds_offset = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, -1);
-  //MedianFilter(hPMT);
+  //GausFilter(hPMT);
 
   // Check beam                                          
   if( rf_pulse != 848 ) rf_time = rf_pulse;
@@ -506,7 +506,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
       pds_peak[hit] = hPMT->GetBinContent(peak_time[hit]);
       pds_FWHM[hit] = FWHM(hPMT, peak_time[hit]);
       pds_time[hit] = FindEvTime(hPMT, peak_time[hit]);
-      pds_integral[hit] = Integral(hPMT, peak_time[hit]);
+      pds_integral[hit] = FixedIntegral(hPMT, peak_time[hit]);
     } 
   } else {
     pds_ratio = -9999;
@@ -610,7 +610,7 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
   // Check integral
   if( !fCalibration )
     for( UInt_t i = 0; i < peak_time.size(); i++ ) {
-      Double_t integral = Integral(h, peak_time[i]);
+      Double_t integral = FixedIntegral(h, peak_time[i]);
       if( pmt < 0 && integral > -kSumThreshold )
 	cut_hit[i] = true;
       else if( pmt >= 0 && integral > kPMTThreshold / kADCtick_to_pe[pmt] )
@@ -768,23 +768,24 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   return offset_min;
 }
 
-TH1F* PDSAnalysis::MedianFilter(TH1F* h)
+TH1F* PDSAnalysis::GausFilter(TH1F* h)
 {
-  // Refills histogram with median of every 3 values
-  std::vector<Double_t> values(3,0.0);
+  // Refills histogram with a gaussian conv. of width 1.0 ticks
+  Double_t matrix[] = {0.241971, 0.398942, 0.241971}; // 1.0 ticks
+  //Double_t matrix[] = {0.107982, 0.797885, 0.107982}; // 0.5 ticks
+  
   TH1F* hTemp = (TH1F*)h->Clone("hTemp");
   for( Int_t i = 1; i < h->GetNbinsX()+1; i++ ) {
     if( i == 1 || i == h->GetNbinsX() )
       continue;
-    else
-      for( UInt_t j = 0; j < 3; j++ )
-        values[j] = hTemp->GetBinContent(i+j-1);
     
-    std::sort( values.begin(), values.end() );
-
-    h->SetBinContent(i, values[1]);
+    Double_t new_value = matrix[0] * hTemp->GetBinContent(i-1);
+    new_value += matrix[1] * hTemp->GetBinContent(i);
+    new_value += matrix[2] * hTemp->GetBinContent(i+1);
+    h->SetBinContent(i, new_value);
   }
   hTemp->Delete();
+  
   return h;
 }
 
@@ -873,14 +874,14 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = 1.0;
+    threshold = 2.5;
   else if( pmt < 0 )
     if( fRateMode )
       threshold = -kPMTThreshold; // Don't set a sum threshold
     else
       threshold = -kSumThreshold;
   else
-    threshold = 2.5; // Initial threshold of 3 ADC
+    threshold = 3; // Initial threshold of 3 ADC
     //threshold = kPMTThreshold / kADC_to_pe[pmt];
   
   // Find prompt (for PMT sum)
@@ -931,8 +932,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   for( Int_t sample = start; sample < finish; sample++ )
     // Search for zero crossing OR threshold crossing
     if( h->GetBinContent(sample-1) * h->GetBinContent(sample) < 0 || 
-	(Abs(h->GetBinContent(sample)) >= Abs(threshold) && 
-	 Abs(h->GetBinContent(sample-1)) < Abs(threshold))) {
+	(Abs(h->GetBinContent(sample)) > Abs(threshold) && 
+	 Abs(h->GetBinContent(sample-1)) <= Abs(threshold))) {
       // Crossed -> store previous peak
       if( local_peak_time != peak_time[0] && 
 	  Abs(h->GetBinContent(local_peak_time)) > Abs(threshold) ) 
@@ -1073,6 +1074,17 @@ Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> &peak_time)
   if( peak_time[0] == -9999 ) return -9999;
   for( UInt_t peak = 0; peak < peak_time.size(); peak++ )
     integral += Integral(h, peak_time[peak]);
+  return integral;
+}
+
+Double_t PDSAnalysis::FixedIntegral(TH1F* h, Int_t peak_time)
+{
+  // Integrates peak from -2 ticks to +2 ticks
+  Int_t nTick = 2;
+  Double_t integral = 0;
+  for( Int_t sample = peak_time - nTick; sample < peak_time + nTick; sample++ )
+    integral += h->GetBinContent(sample);
+
   return integral;
 }
 
@@ -1257,9 +1269,9 @@ void PDSAnalysis::PrintEvent()
 	    << "BEAM?:" << inBeamWindow << "\n"
 	    << "PMT:  \tTIME: \tPEAK: \tFWHM: \tINT:  \tBL:   \tRATIO:\tHITS: \tFLAG?:" << "\n"
 	    << "PDS" << "\t" << Form("%.6g",pds_time[0] * kTick_to_ns) << "\t"
-	    << Form("%.4g",pds_peak[0] * -1.) << "\t"
+	    << Form("%.4g",pds_peak[0] * -1) << "\t"
 	    << Form("%.4g",pds_FWHM[0] * kTick_to_ns) << "\t"
-	    << Form("%.4g",pds_integral[0] * kTick_to_ns * -1.) << "\t"
+	    << Form("%.4g",pds_integral[0] * -1.) << "\t"
 	    << Form("%.4g",pds_offset) << "\t"
 	    << Form("%.4g",pds_ratio) << "\t"
 	    << Form("%5d",pds_hits) << "\t"
@@ -1301,7 +1313,7 @@ void PDSAnalysis::DrawEvent()
   pmt_hists->Add(hSum);
   RemoveADCOffset(hSum);
   //FFTFilter(hSum, -1);
-  //MedianFilter(hSum);
+  //GausFilter(hSum);
   RemoveADCOffset(hSum,-50);
   xmin = 0;
   xmax = fNSamples;
@@ -1406,7 +1418,7 @@ void PDSAnalysis::DrawEvent()
     pmt_hists->Add(h);
     //RemoveADCOffset(h);
     //FFTFilter(h,pmt);
-    //MedianFilter(h);
+    //GausFilter(h);
     RemoveADCOffset(h,pmt*20);
     xmin = 0;
     xmax = fNSamples;
@@ -1445,7 +1457,7 @@ void PDSAnalysis::DrawEvent()
       g_peak->Draw("same p");
 
       //TLine* l_threshold1 =new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, +kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
-      TLine* l_threshold2 = new TLine(xmin, -2.5+pmt*20, xmax, -2.5+pmt*20);
+      TLine* l_threshold2 = new TLine(xmin, -3+pmt*20, xmax, -3+pmt*20);
       //pmt_lines->Add(l_threshold1);
       pmt_lines->Add(l_threshold2);
       //l_threshold1->SetLineColor(kBlue);

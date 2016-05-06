@@ -136,7 +136,7 @@ class PDSAnalysis
   TH1F* GetPMTSum(TString s="");
   TH1F* GetRFMean();
   Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
-  TH1F* MedianFilter(TH1F* h);
+  TH1F* GausFilter(TH1F* h);
   TH1F* FFTFilter(TH1F* h, Int_t pmt);
 
   std::vector<Int_t> FindPeaks(TH1F* h, Int_t pmt=-1);
@@ -146,6 +146,7 @@ class PDSAnalysis
   Double_t SumHits(TH1F* h, std::vector<Int_t> &peak_time);
   Double_t NegativeIntegral(TH1F* h, std::vector<Int_t> &peak_time);
   Double_t TotalIntegral(TH1F* h, std::vector<Int_t> &peak_time);
+  Double_t FixedIntegral(TH1F* h, Int_t peak_time);
   Double_t Integral(TH1F* h, Int_t peak_time);
 
   Double_t QuadraticYInterpolate(Double_t x[3], Double_t y[3], Double_t p);
