@@ -453,7 +453,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
       pmt_peak[pmt][hit] = hPMT->GetBinContent(peak_time[hit]);
       pmt_FWHM[pmt][hit] = FWHM(hPMT, peak_time[hit]);
       pmt_time[pmt][hit] = FindEvTime(hPMT, peak_time[hit]);
-      pmt_integral[pmt][hit] = FixedIntegral(hPMT, peak_time[hit]);
+      pmt_integral[pmt][hit] = Integral(hPMT, peak_time[hit]);
     }
   } else {
     pmt_ratio[pmt] = -9999;
@@ -506,7 +506,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
       pds_peak[hit] = hPMT->GetBinContent(peak_time[hit]);
       pds_FWHM[hit] = FWHM(hPMT, peak_time[hit]);
       pds_time[hit] = FindEvTime(hPMT, peak_time[hit]);
-      pds_integral[hit] = FixedIntegral(hPMT, peak_time[hit]);
+      pds_integral[hit] = Integral(hPMT, peak_time[hit]);
     } 
   } else {
     pds_ratio = -9999;
@@ -610,7 +610,7 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
   // Check integral
   if( !fCalibration )
     for( UInt_t i = 0; i < peak_time.size(); i++ ) {
-      Double_t integral = FixedIntegral(h, peak_time[i]);
+      Double_t integral = Integral(h, peak_time[i]);
       if( pmt < 0 && integral > -kSumThreshold )
 	cut_hit[i] = true;
       else if( pmt >= 0 && integral > kPMTThreshold / kADCtick_to_pe[pmt] )
@@ -1079,8 +1079,8 @@ Double_t PDSAnalysis::TotalIntegral(TH1F* h, std::vector<Int_t> &peak_time)
 
 Double_t PDSAnalysis::FixedIntegral(TH1F* h, Int_t peak_time)
 {
-  // Integrates peak from -2 ticks to +2 ticks
-  Int_t nTick = 2;
+  // Integrates peak from -5 ticks to +5 ticks
+  Int_t nTick = 5;
   Double_t integral = 0;
   for( Int_t sample = peak_time - nTick; sample < peak_time + nTick; sample++ )
     integral += h->GetBinContent(sample);
@@ -1091,47 +1091,48 @@ Double_t PDSAnalysis::FixedIntegral(TH1F* h, Int_t peak_time)
 Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
 {
   // Integrates peak across 10%-peak width
-  Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
+  Double_t peak_10p = 0 * h->GetBinContent(peak_time) * 0.10;
   Double_t integral = 0;
   UInt_t sample = peak_time;
-  integral += h->GetBinContent(peak_time);
   
   // Backwards from peak
-  sample = peak_time - 1;
-  while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) 
-	 && h->GetBinContent(sample+1) * h->GetBinContent(sample) > 0) {
-    integral += h->GetBinContent(sample);
+  sample = peak_time;
+  while( Abs( h->GetBinContent(sample-1) ) > Abs(peak_10p) 
+	 && h->GetBinContent(sample-1) * h->GetBinContent(sample) > 0) {
+    Double_t x0 = h->GetBinCenter(sample-1);
+    Double_t x1 = h->GetBinCenter(sample);
+    Double_t dx = x1 - x0;
+    Double_t y  = (h->GetBinContent(sample-1) + h->GetBinContent(sample))/2;
+    integral += y * dx;
     sample--;
   }
   // Interpolate last bin
-  Double_t dt = h->GetBinWidth(sample)/2;
-  Double_t times[] = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
-		       h->GetBinLowEdge(sample+1)+dt };
-  Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample),
-			h->GetBinContent(sample+1) };
+  Double_t times[] = { h->GetBinCenter(sample-1), h->GetBinCenter(sample), h->GetBinCenter(sample+1) };
+  Double_t values[] = { h->GetBinContent(sample-1), h->GetBinContent(sample), h->GetBinContent(sample+1) };
   Double_t x0 = QuadraticXInterpolate( values, times, peak_10p );
-  Double_t x1 = h->GetBinLowEdge(sample+1)+dt;
+  Double_t x1 = h->GetBinCenter(sample);
   Double_t dx = x1 - x0;
-  Double_t y  = (h->GetBinContent(sample+1) + peak_10p)/2;
+  Double_t y  = (h->GetBinContent(sample) + peak_10p)/2;
   integral += y * dx;
   
   // Forwards from peak
-  sample = peak_time + 1;
-  while( Abs( h->GetBinContent(sample) ) > Abs(peak_10p) 
-	 && h->GetBinContent(sample-1) * h->GetBinContent(sample) > 0) {
-    integral += h->GetBinContent(sample);
+  sample = peak_time;
+  while( Abs( h->GetBinContent(sample+1) ) > Abs(peak_10p) 
+	 && h->GetBinContent(sample+1) * h->GetBinContent(sample) > 0) {
+    Double_t x0 = h->GetBinCenter(sample);
+    Double_t x1 = h->GetBinCenter(sample+1);
+    Double_t dx = x1 - x0;
+    Double_t y  = (h->GetBinContent(sample+1) + h->GetBinContent(sample))/2;
+    integral += y * dx;
     sample++;
   }
   // Interpolate last bin   
-  dt = h->GetBinWidth(sample)/2;
-  times = { h->GetBinLowEdge(sample-1)+dt, h->GetBinLowEdge(sample)+dt,
-	    h->GetBinLowEdge(sample+1)+dt };
-  values = { h->GetBinContent(sample-1), h->GetBinContent(sample),
-	     h->GetBinContent(sample+1) };
+  times = { h->GetBinCenter(sample-1), h->GetBinCenter(sample), h->GetBinCenter(sample+1) };
+  values = { h->GetBinContent(sample-1), h->GetBinContent(sample), h->GetBinContent(sample+1) };
   x1 = QuadraticXInterpolate( values, times, peak_10p );
-  x0 = h->GetBinLowEdge(sample-1)+dt;
+  x0 = h->GetBinCenter(sample);
   dx = x1 - x0;
-  y  = (h->GetBinContent(sample-1) + peak_10p)/2;
+  y  = (h->GetBinContent(sample) + peak_10p)/2;
   integral += y * dx;
   
   return integral;
