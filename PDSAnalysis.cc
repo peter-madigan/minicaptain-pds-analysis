@@ -32,7 +32,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
 const Double_t PDSAnalysis::kSumThreshold      = 3.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
+const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
 const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
@@ -48,7 +48,6 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
   // minimum 1pe ADC is set to 5 
-  // (not recommended to use the height for pe calc)
   kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
   kADC_to_pe.push_back(-1./5.000); // #2
   kADC_to_pe.push_back(-1./5.000); // #3
@@ -72,6 +71,7 @@ void PDSAnalysis::InitializeADC_to_pe() {
       kADC_to_pe[pmt] = 1.0;
 }
 void PDSAnalysis::InitializeADCtick_to_pe() {
+  // not correct
   kADCtick_to_pe.push_back(-1./3.616); // #1 Dead pmt?
   kADCtick_to_pe.push_back(-1./3.464); // #2   
   kADCtick_to_pe.push_back(-1./3.546); // #3   
@@ -436,7 +436,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
   pmt_offset[pmt] = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, pmt);
-  //GausFilter(hPMT);
+  GausFilter(hPMT);
 
   // Find peaks in histogram
   std::vector<Int_t> peak_time = FindPeaks(hPMT, pmt);
@@ -484,7 +484,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   pds_offset = RemoveADCOffset(hPMT);
   //if( !fCalibration )
   //FFTFilter(hPMT, -1);
-  //GausFilter(hPMT);
+  GausFilter(hPMT);
 
   // Check beam                                          
   if( rf_pulse != 848 ) rf_time = rf_pulse;
@@ -608,14 +608,14 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
   }
 
   // Check integral
-  if( !fCalibration )
+  /*if( !fCalibration )
     for( UInt_t i = 0; i < peak_time.size(); i++ ) {
       Double_t integral = Integral(h, peak_time[i]);
       if( pmt < 0 && integral > -kSumThreshold )
 	cut_hit[i] = true;
       else if( pmt >= 0 && integral > kPMTThreshold / kADCtick_to_pe[pmt] )
 	cut_hit[i] = true;
-    }
+	}*/
 
   // Cut peaks that fail test and place element closest to prompt at start
   std::vector<Int_t> new_vector;
@@ -651,9 +651,7 @@ Bool_t PDSAnalysis::IsPMTEvent(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time
   if( pmt_FWHM[pmt][0] == -9999 ) return false;
   if( pmt_peak[pmt][0] == -9999 ) return false;
   if( pmt_integral[pmt][0] == -9999 ) return false;
-  //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pmt ) return false;
-  //if( pmt_FWHM[pmt][0] < kWidthThreshold ) return false;
-  //if( pmt_ratio[pmt] > kRatioThreshold ) return false;
+
   return true;
 }
 
@@ -663,9 +661,7 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time)
   if( pds_FWHM[0] == -9999 ) return false;
   if( pds_peak[0] == -9999 ) return false;
   if( pds_integral[0] == -9999 ) return false;
-  //if( TotalIntegral(h,peak_time) > -kIntegralThreshold_pds ) return false;
-  //if( pds_FWHM[0] < kWidthThreshold ) return false;
-  //if( pds_ratio >  kRatioThreshold ) return false;
+
   return true;
 }
 
@@ -704,7 +700,7 @@ TH1F* PDSAnalysis::GetPMTSum(TString s)
     
     for( UInt_t sample = 0; sample < fNSamples; sample++ ) {
       if( !fCalibration )
-	h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADCtick_to_pe[pmt]);
+	h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
       else
 	h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
     }
@@ -730,12 +726,12 @@ TH1F* PDSAnalysis::GetRFMean()
 
 Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset) 
 {
-  // calculates an offset from a 100ns interval
+  // calculates an offset from a 400ns interval
   // returns the offset with a std. dev. < 1 ADC or the offset with the smallest std. dev. (the faster of the two)
   Double_t offset = 0.0;
   Double_t offset_min = 0.0; 
 
-  UInt_t n = 25;
+  UInt_t n = 100;
   UInt_t start = 1;
   UInt_t end = n + start;
 
@@ -756,12 +752,12 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
       offset_min = offset;
       stddev_min = stddev;
     }
-    start++;
+    start += n/2;
     end = n + start;
   }
   // Remove offset
   for( UInt_t sample = 0; sample < fNSamples; sample++ )
-    h->Fill(sample, -offset + left_offset);
+    h->Fill(sample, -offset_min + left_offset);
 
   //  std::cout << "start" << start << "\tend" << end << std::endl;
   //  std::cout << "Minimum std. dev. for offset: " << stddev_min << std::endl;
@@ -816,14 +812,14 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
       if( i == (Int_t)fNSamples / 2 )
 	fft[i] = 0;
-    else if( Abs(1.*fNSamples-i) == 512 || i == 512 ) // lots of noise at this freq
-      fft[i] = fft[i] / (Complex)(12);
-    else if( i < 260 && i > 230 )
-      fft[i] = fft[i] / (Complex)(Abs(245-i)+1);
-    else if( Abs(1.*fNSamples-i) < 260 && Abs(1.*fNSamples-i) > 230 )
-      fft[i] = fft[i] / (Complex)(Abs(-1.*fNSamples+i+245)+1);
-    else if( Abs(1.*fNSamples-i) == 131 || i == 131 ) // lots of noise at this freq
-      fft[i] = fft[i] / (Complex)(12);
+      else if( Abs(1.*fNSamples-i) == 512 || i == 512 ) // lots of noise at this freq
+	fft[i] = fft[i] / (Complex)(12);
+      else if( i < 260 && i > 230 )
+	fft[i] = fft[i] / (Complex)(Abs(245-i)+1);
+      else if( Abs(1.*fNSamples-i) < 260 && Abs(1.*fNSamples-i) > 230 )
+	fft[i] = fft[i] / (Complex)(Abs(-1.*fNSamples+i+245)+1);
+      else if( Abs(1.*fNSamples-i) == 131 || i == 131 ) // lots of noise at this freq
+	fft[i] = fft[i] / (Complex)(12);
     //else if( i > 512 ) // high freq filter
     //fft[i] = fft[i] / (Complex)(i-512);
     
@@ -836,9 +832,7 @@ TH1F* PDSAnalysis::FFTFilter(TH1F* h, Int_t pmt)
   } else {
     // Band-pass filter
     for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
-      if( i >= (Int_t)fNSamples / 2 - 1 )
-        fft[i] = 0;
-      else if( i == 512 ) // lots of noise at this freq            
+      if( i == 512 ) // lots of noise at this freq            
 	fft[i] = 0;
       else if( i == 131 )
 	fft[i] = 0;
@@ -874,15 +868,14 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   // Set threshold
   Double_t threshold;
   if( fCalibration )
-    threshold = 2.5;
+    threshold = 3;
   else if( pmt < 0 )
     if( fRateMode )
       threshold = -kPMTThreshold; // Don't set a sum threshold
     else
       threshold = -kSumThreshold;
   else
-    threshold = 3; // Initial threshold of 3 ADC
-    //threshold = kPMTThreshold / kADC_to_pe[pmt];
+    threshold = kPMTThreshold / kADC_to_pe[pmt];
   
   // Find prompt (for PMT sum)
   UInt_t start;
@@ -1091,7 +1084,7 @@ Double_t PDSAnalysis::FixedIntegral(TH1F* h, Int_t peak_time)
 Double_t PDSAnalysis::Integral(TH1F* h, Int_t peak_time)
 {
   // Integrates peak across 10%-peak width
-  Double_t peak_10p = 0 * h->GetBinContent(peak_time) * 0.10;
+  Double_t peak_10p = h->GetBinContent(peak_time) * 0.10;
   Double_t integral = 0;
   UInt_t sample = peak_time;
   
@@ -1211,7 +1204,7 @@ void PDSAnalysis::ConvertUnits()
 {
   Double_t mean_conversion = 0;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-    mean_conversion += kADC_to_pe[pmt] / kADCtick_to_pe[pmt];
+    mean_conversion += kADCtick_to_pe[pmt] / kADC_to_pe[pmt];
     for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < PDSAnalysis::kMaxNHits; hit++ ) {
       pmt_time[pmt][hit] *= kTick_to_ns;
       pmt_peak[pmt][hit] *= kADC_to_pe[pmt];
@@ -1224,9 +1217,9 @@ void PDSAnalysis::ConvertUnits()
   mean_conversion = mean_conversion / (kNPMTs - 1);
   for( Int_t hit = 0; hit < pds_hits; hit++ ) {
     pds_time[hit] *= kTick_to_ns;
-    pds_peak[hit] *= -mean_conversion;
+    pds_peak[hit] *= -1;
     pds_FWHM[hit] *= kTick_to_ns;
-    pds_integral[hit] *= -1.;
+    pds_integral[hit] *= -mean_conversion;
   }
   rf_time *= kTick_to_ns;
 }
@@ -1458,7 +1451,7 @@ void PDSAnalysis::DrawEvent()
       g_peak->Draw("same p");
 
       //TLine* l_threshold1 =new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, +kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
-      TLine* l_threshold2 = new TLine(xmin, -3+pmt*20, xmax, -3+pmt*20);
+      TLine* l_threshold2 = new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
       //pmt_lines->Add(l_threshold1);
       pmt_lines->Add(l_threshold2);
       //l_threshold1->SetLineColor(kBlue);

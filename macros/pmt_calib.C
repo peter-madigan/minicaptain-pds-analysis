@@ -56,7 +56,7 @@ void pmt_calib() {
  
   for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TString name_int = Form("PMT%d_integral",pmt+1);
-    h_int->Add(new TH1F(name_int,name_int+";integral;count",50,-50,0));
+    h_int->Add(new TH1F(name_int,name_int+";integral;count",75,-75,0));
     ((TH1F*)h_int->At(pmt))->Sumw2();
 
     TString name_peak = Form("PMT%d_height",pmt+1);
@@ -79,7 +79,7 @@ void pmt_calib() {
       if( pmt_flag[pmt] ) h_notNoise->Fill(pmt_peak[pmt][0]);
       else                h_noise->Fill(pmt_peak[pmt][0]);
       
-      if( pmt_flag  )
+      if( pmt_flag  && pmt_hits[pmt] < 2 )
       for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
 	((TH1F*)h_peak->At(pmt))->Fill(pmt_peak[pmt][hit]);
 	((TH1F*)h_int->At(pmt))->Fill(pmt_integral[pmt][hit]);
