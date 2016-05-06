@@ -22,7 +22,6 @@ class PDSAnalysis
   // Analysis constants
   //   Described in .cc file
   static const Int_t  kMaxNHits    = 200;
-  //static const Int_t  kMaxNEvents  = 100;
   static const size_t kMaxNSamples = 2048; 
   static const size_t kNBoards     = 3;
   static const size_t kNChannels   = 6;
@@ -159,4 +158,5 @@ class PDSAnalysis
 
   void PrintEvent();
   void DrawEvent();
+  void DrawEvent(Int_t number);
 };

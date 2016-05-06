@@ -32,7 +32,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 
 const Double_t PDSAnalysis::kSumThreshold      = 3.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
-const Double_t PDSAnalysis::kPMTThreshold      = 0.50; // pe
+const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
 const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
@@ -115,10 +115,9 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, TString 
   } else
     std::cout << "Only pds events >" << kSumThreshold << "pe will be flagged." << std::endl;
 
-  if( fViewerMode ) {
+  if( fViewerMode )
     std::cout << "Running in viewer mode..." << std::endl;
-    fCanvas = new TCanvas("fCanvas","Event viewer");
-  }
+  fCanvas = new TCanvas("fCanvas","Event viewer");
 
   if( fCalibration )
     std::cout << "Running in calibration mode..." << std::endl;
@@ -154,8 +153,7 @@ PDSAnalysis::PDSAnalysis(TString fiName, UInt_t runNum, TString foName, TString 
 PDSAnalysis::~PDSAnalysis()
 {
   std::cout << "Cleaning up..." << std::endl;
-  if( fViewerMode )
-    fCanvas->Close();
+  fCanvas->Close();
   if( !fMeanWaveform.empty() )
     for( UInt_t i = 0; i < fMeanWaveform.size(); i++ )
       fMeanWaveform[i]->Delete();
@@ -1255,7 +1253,7 @@ void PDSAnalysis::PrintEvent()
   std::cout << "Run#" << runno << "\n"
 	    << "TPC trig#" << tpc_trigno << "\t"
 	    << "Sub trig#" << tpc_subtrigno << "\t"
-	    << "PDS trig#" << pds_trigno << "/" << fPMTTree->GetEntriesFast() << "\t"
+	    << "PDS trig#" << pds_trigno << "/" << fPMTTree->GetEntries() << "\t"
 	    << "PDS evno#" << pds_evno << "\n"
 	    << "Multiplicity: " << pds_nevent << "\n"
 	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
@@ -1451,7 +1449,7 @@ void PDSAnalysis::DrawEvent()
       g_peak->Draw("same p");
 
       //TLine* l_threshold1 =new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, +kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
-      TLine* l_threshold2 = new TLine(xmin, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, -kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
+      TLine* l_threshold2 = new TLine(xmin, kPMTThreshold/kADC_to_pe[pmt]+pmt*20, xmax, kPMTThreshold/kADC_to_pe[pmt]+pmt*20);
       //pmt_lines->Add(l_threshold1);
       pmt_lines->Add(l_threshold2);
       //l_threshold1->SetLineColor(kBlue);
@@ -1515,4 +1513,21 @@ void PDSAnalysis::DrawEvent()
   pmt_hists->Delete();
   pmt_lines->Delete();
   //c->Close();
+}
+
+void PDSAnalysis::DrawEvent(Int_t number)
+{
+  if( !fPMTTree->GetEntry(number) ) 
+    return;
+  else {
+    Int_t i = 0;
+    while( fAnalysisTree->GetEntry(i) ) {
+      if( pds_trigno == number ) { 
+	// Draw trig                                      
+	PrintEvent();
+	DrawEvent(); 
+      } 
+      i++;
+    }
+  }
 }
