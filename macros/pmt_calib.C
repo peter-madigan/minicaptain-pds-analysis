@@ -19,13 +19,13 @@ void pmt_calib() {
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
   ch->Add("calib/pdsTree9989/pdsEvTree*");
-  ch->Add("calib/pdsTree9990/pdsEvTree*");
+  /*ch->Add("calib/pdsTree9990/pdsEvTree*");
   ch->Add("calib/pdsTree9991/pdsEvTree*");
   ch->Add("calib/pdsTree9992/pdsEvTree*");
   ch->Add("calib/pdsTree9994/pdsEvTree*");
   ch->Add("calib/pdsTree9995/pdsEvTree*");
   ch->Add("calib/pdsTree9996/pdsEvTree*");
-
+  */
   Int_t    pmt_hits[kNPMTs];
   Double_t pmt_peak[kNPMTs][kMaxNHits];
   Double_t pmt_integral[kNPMTs][kMaxNHits];
@@ -68,7 +68,7 @@ void pmt_calib() {
     ((TH1F*)h_bl->At(pmt))->Sumw2();
   }
   
-  TF1* gaus = new TF1("gaussian","gaus(0)+gaus(3)",-1e4,0);
+  TF1* fit  = new TF1("fit","gaus(0) + gaus(3)",-1e2,0);
   ch->GetEntry(0);
   for( Int_t i = 0; ch->GetEntry(i); i++ ) {
     if( i%(ch->GetEntries()/10) == 0 ) cout << i << " of " << ch->GetEntriesFast() << endl;
@@ -96,19 +96,21 @@ void pmt_calib() {
     Double_t norm = 1./((TH1F*)h_peak->At(pmt))->Integral();
     ((TH1F*)h_peak->At(pmt))->Scale(norm);
     Double_t low_edge = -25;
-    Double_t high_edge =  0;
-    gaus -> SetRange(low_edge, high_edge);
-    gaus->SetParameters(1,0,1,0.001,0,4);
-    gaus->SetParLimits(0,0.1,2);
-    gaus->SetParLimits(1,-2,0);
-    gaus->SetParLimits(3,0,0.1);
-    gaus->SetParLimits(4,low_edge,0);
+    Double_t high_edge = 0;
+    fit -> SetRange(low_edge, high_edge);
+    fit->SetParameters(1,0,1,0.01,-7,1);
+    fit->SetParLimits(0,0,2);
+    fit->SetParLimits(1,-1,0);
+    fit->SetParLimits(2,low_edge,high_edge);
+    fit->SetParLimits(3,0,2);
+    fit->SetParLimits(4,low_edge,high_edge);
+    fit->SetParLimits(5,low_edge,high_edge);
 
     c_peak->cd(1+pmt)->SetLogy();
     std::cout << std::endl;
     std::cout << "vvv\t" << "Fit results for " << pmt+1 << "\tvvv" << std::endl;
     std::cout << "~~~\t" << "Height #" << pmt+1 << "\t~~~" << std::endl;
-    ((TH1F*)h_peak->At(pmt))->Fit("gaussian","r");
+    ((TH1F*)h_peak->At(pmt))->Fit("fit","r");
     ((TH1F*)h_peak->At(pmt))->Draw("e");
     c_peak->Update();
     
@@ -129,11 +131,17 @@ void pmt_calib() {
     ((TH1F*)h_int->At(pmt))->Scale(norm);
     low_edge = -50;
     high_edge =  0;
-    gaus -> SetRange(low_edge, high_edge);
-    gaus->SetParameters(1,-5,1);
+    fit -> SetRange(low_edge, high_edge);
+    fit->SetParameters(1,0,1,0.01,-10,1);
+    fit->SetParLimits(0,0,2);
+    fit->SetParLimits(1,-1,0);
+    fit->SetParLimits(2,low_edge,high_edge);
+    fit->SetParLimits(3,0,2);
+    fit->SetParLimits(4,low_edge,high_edge);
+    fit->SetParLimits(5,low_edge,high_edge);
 
     c_int->cd(1+pmt)->SetLogy();
-    ((TH1F*)h_int->At(pmt))->Fit("gaussian","r");
+    ((TH1F*)h_int->At(pmt))->Fit("fit","r");
     ((TH1F*)h_int->At(pmt))->Draw("e");
     c_int->Update();
 

@@ -175,14 +175,14 @@ void nitrogen() {
 	     << "Time: " << gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24 << endl;
       
       // Cut events
-      if( !inBeamWindow && pds_flag && pds_nevent == 1 && pds_integral[0] > 5 ) {
+      if( !inBeamWindow && pds_flag && pds_nevent == 1 && pds_peak[0] > 5 ) {
 	// Loop over PDS
 	//Double_t TOF = pds_time[0] - rf_time - kDelay;
 	Double_t TOF_hit = 0;
 	Double_t triplet = 0;
 	Double_t singlet = 0;
 	for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	  if( pmt_flag[pmt] ) {
+	  if( pmt_flag[pmt] && (pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) {
 	    if( Abs(pmt_time[pmt][0]-pds_time[0]) < 30 )
 	      singlet += pmt_peak[pmt][0];
 	    for( Int_t j = 0; j < pmt_hits[pmt]; j++) {

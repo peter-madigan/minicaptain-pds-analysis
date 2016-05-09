@@ -106,20 +106,20 @@ void tof_charge() {
     if( inBeamWindow && pds_flag && pds_nevent == 1 ) {
       // Loop over PDS
       Double_t TOF = pds_time[0] - rf_time - kDelay;
-      Double_t event_singlet_integral = 0;
-      Double_t event_triplet_integral = 0;
-      Double_t triplet_integral = 0;
+      Double_t event_singlet = 0;
+      Double_t event_triplet = 0;
+      Double_t triplet = 0;
       Double_t ev_ratio = 0;
       Double_t TOF_hit = 0;
       
       for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	if( pmt_flag[pmt] ) {
-	  triplet_integral = 0;
+	if( pmt_flag[pmt] && (pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) {
+	  triplet = 0;
 	  
 	  for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
 	    TOF_hit = pmt_time[pmt][j] - pds_time[0];
 	    if( pmt_time[pmt][j] > pds_time[0] )
-	      triplet_integral += pmt_integral[pmt][j];
+	      triplet += pmt_peak[pmt][j];
 
 	    h_integral_hit->Fill(TOF_hit,pmt_integral[pmt][j]);
 	    h_peak_hit->Fill(TOF_hit,pmt_peak[pmt][j]);
@@ -132,15 +132,15 @@ void tof_charge() {
 	    
 	    h_integral_calib->Fill(pmt_peak[pmt][j],pmt_integral[pmt][j]);
 	  }
-	  event_singlet_integral += pmt_integral[pmt][0];
-	  event_triplet_integral += triplet_integral;
+	  event_singlet += pmt_peak[pmt][0];
+	  event_triplet += triplet;
 	}
       }
-      h_shape->Fill(event_singlet_integral,event_triplet_integral);
-      h_ratio->Fill(TOF,TMath::Log(event_triplet_integral/event_singlet_integral));
+      h_shape->Fill(event_singlet,event_triplet);
+      h_ratio->Fill(TOF,TMath::Log(event_triplet/event_singlet));
 
       h_tof_prompt->Fill(TOF);
-      h_integral->Fill(TOF,event_singlet_integral+event_triplet_integral);
+      h_integral->Fill(TOF,event_singlet+event_triplet);
       h_peak->Fill(TOF,pds_peak[0]);
     }
   }
