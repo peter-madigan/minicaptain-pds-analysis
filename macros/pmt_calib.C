@@ -19,13 +19,13 @@ void pmt_calib() {
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
   ch->Add("calib/pdsTree9989/pdsEvTree*");
-  /*ch->Add("calib/pdsTree9990/pdsEvTree*");
+  ch->Add("calib/pdsTree9990/pdsEvTree*");
   ch->Add("calib/pdsTree9991/pdsEvTree*");
   ch->Add("calib/pdsTree9992/pdsEvTree*");
   ch->Add("calib/pdsTree9994/pdsEvTree*");
   ch->Add("calib/pdsTree9995/pdsEvTree*");
   ch->Add("calib/pdsTree9996/pdsEvTree*");
-  */
+  
   Int_t    pmt_hits[kNPMTs];
   Double_t pmt_peak[kNPMTs][kMaxNHits];
   Double_t pmt_integral[kNPMTs][kMaxNHits];
@@ -60,7 +60,7 @@ void pmt_calib() {
     ((TH1F*)h_int->At(pmt))->Sumw2();
 
     TString name_peak = Form("PMT%d_height",pmt+1);
-    h_peak->Add(new TH1F(name_peak,name_peak+";height;count",40,-20,0));
+    h_peak->Add(new TH1F(name_peak,name_peak+";height;count",20,-20,0));
     ((TH1F*)h_peak->At(pmt))->Sumw2();
 
     TString name_bl = Form("PMT%d_baseline",pmt+1);

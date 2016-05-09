@@ -108,6 +108,7 @@ class PDSAnalysis
   Bool_t   fViewerMode;
   Bool_t   fStoreAll;
   Bool_t   fRateMode;
+  std::vector<TH1F*>  fWaveform;
   std::vector<TH1F*>  fMeanWaveform;
   std::vector< std::vector<TH1F*> > fCalibrationFFT;
 
@@ -131,9 +132,10 @@ class PDSAnalysis
   Bool_t IsPMTEvent(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time);
   Bool_t IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time);
 
-  TH1F* GetPMT(Int_t pmt);
-  TH1F* GetPMTSum(TString s="");
-  TH1F* GetRFMean();
+  void  InitializeWaveforms();
+  TH1F* GetPMT(Int_t pmt, Bool_t first=false);
+  TH1F* GetPMTSum(TString s="", Bool_t first=false);
+  TH1F* GetRFMean(Bool_t first=false);
   Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
   TH1F* GausFilter(TH1F* h);
   TH1F* FFTFilter(TH1F* h, Int_t pmt);

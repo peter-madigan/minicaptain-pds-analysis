@@ -157,6 +157,9 @@ PDSAnalysis::~PDSAnalysis()
   if( !fMeanWaveform.empty() )
     for( UInt_t i = 0; i < fMeanWaveform.size(); i++ )
       fMeanWaveform[i]->Delete();
+  if( !fWaveform.empty() )
+    for( UInt_t i = 0; i < fWaveform.size(); i++ )
+      fWaveform[i]->Delete();
 }
 
 TTree* PDSAnalysis::ImportTree(TString fiName)
@@ -350,6 +353,9 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
   gps_s  = fGPS_s;
   gps_ns = fGPS_ns;
 
+  if( fAnalysisTree->GetEntries() == 0 )
+    InitializeWaveforms();
+
   pds_ntrig = end - start + 1;
   Int_t subtrig = 0;
   while( fPMTTree->GetEntry(start + subtrig) && subtrig < pds_ntrig ) {
@@ -472,8 +478,6 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
       fMeanWaveform[fMeanWaveform.size()-1]->Add(hPMT);
   } else if( pmt_flag[pmt] )
     fMeanWaveform[pmt+1]->Add(hPMT);
-  
-  hPMT->Delete();
 }
 
 void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
@@ -546,8 +550,6 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
       fMeanWaveform[fMeanWaveform.size()-1]->Add(hPMT);
   } else if( pds_flag )
     fMeanWaveform[kNPMTs]->Add(hPMT);
-  
-  hPMT->Delete();
 }
 
 Int_t PDSAnalysis::QuickCheckMult(std::vector<Double_t> &rf_pulse)
@@ -563,7 +565,6 @@ Int_t PDSAnalysis::QuickCheckMult(std::vector<Double_t> &rf_pulse)
       nevent++;
     }
   
-  hPMT->Delete();
   return nevent;
 }
 
@@ -663,7 +664,19 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time)
   return true;
 }
 
-TH1F* PDSAnalysis::GetPMT(Int_t pmt) 
+void PDSAnalysis::InitializeWaveforms()
+{
+  for( Int_t pmt = 0; pmt < kNPMTs + 2; pmt++ ) {
+    if( pmt < kNPMTs )
+      fWaveform.push_back(GetPMT(pmt,true));
+    else if( pmt == kNPMTs )
+      fWaveform.push_back(GetPMTSum("",true));
+    else
+      fWaveform.push_back(GetRFMean(true));
+  }
+}
+
+TH1F* PDSAnalysis::GetPMT(Int_t pmt, Bool_t first) 
 {
   UInt_t board;
   if( pmt < 5 )
@@ -674,18 +687,29 @@ TH1F* PDSAnalysis::GetPMT(Int_t pmt)
     board = 1;
   UInt_t channel = pmt % 5;
 
-  TString name = Form("hPMT_%d", pmt);
-  TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
+  TH1F* h;
+  if( first ) {
+    TString name = Form("hPMT_%d", pmt);
+    h = new TH1F(name, name, fNSamples, 0, fNSamples);
+  } else
+    h = fWaveform[pmt];
+  
+  h->Reset();
   for( UInt_t sample = 0; sample < fNSamples; sample++ )
     h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
   return h;
 }
 
-TH1F* PDSAnalysis::GetPMTSum(TString s) 
+TH1F* PDSAnalysis::GetPMTSum(TString s, Bool_t first) 
 {
-  TString name = "hPMTSum"+s;
-  TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
-  
+  TH1F* h;
+  if( first ) {
+    TString name = "hPMTSum"+s;
+    h = new TH1F(name, name, fNSamples, 0, fNSamples);
+  } else
+    h = fWaveform[kNPMTs];
+
+  h->Reset();
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     UInt_t board;
     if( pmt < 5 )
@@ -697,21 +721,26 @@ TH1F* PDSAnalysis::GetPMTSum(TString s)
     UInt_t channel = pmt % 5;
     
     for( UInt_t sample = 0; sample < fNSamples; sample++ ) {
-      if( !fCalibration )
-	h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
-      else
+      if( fCalibration )
 	h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
+      else
+	h->Fill(sample, -fDigitizerWaveform[board][channel][sample] * kADC_to_pe[pmt]);
     }
   }
 
   return h;
 }
 
-TH1F* PDSAnalysis::GetRFMean() 
+TH1F* PDSAnalysis::GetRFMean(Bool_t first) 
 {
-  TString name = "hRFMean";
-  TH1F* h = new TH1F(name, name, fNSamples, 0, fNSamples);
+  TH1F* h;
+  if( first ) {
+    TString name = "hRFMean";
+    h = new TH1F(name, name, fNSamples, 0, fNSamples);
+  } else
+    h = fWaveform[kNPMTs+1];
   
+  h->Reset();
   for( UInt_t board = 0; board < kNBoards; board++ ) {
     UInt_t channel = 5;
     for( UInt_t sample = 0; sample < fNSamples; sample++ )
@@ -770,8 +799,10 @@ TH1F* PDSAnalysis::GausFilter(TH1F* h)
   
   TH1F* hTemp = (TH1F*)h->Clone("hTemp");
   for( Int_t i = 1; i < h->GetNbinsX()+1; i++ ) {
-    if( i == 1 || i == h->GetNbinsX() )
+    if( i == 1 || i == h->GetNbinsX() ) {
+      h->SetBinContent(i, hTemp->GetBinContent(i));
       continue;
+    }
     
     Double_t new_value = matrix[0] * hTemp->GetBinContent(i-1);
     new_value += matrix[1] * hTemp->GetBinContent(i);
@@ -990,8 +1021,6 @@ std::vector<Double_t> PDSAnalysis::FindRFTime()
       rf_time.push_back( QuadraticXInterpolate( values, times, -kRFThreshold ) );
     }
   }
-
-  h->Delete();
   return rf_time;
 }
 
@@ -1290,8 +1319,7 @@ void PDSAnalysis::DrawEvent()
   //fCanvas->SetGridx();
   //fCanvas->SetGridy();
 
-  TObjArray* pmt_hists = new TObjArray();
-  TObjArray* pmt_lines = new TObjArray();
+   TObjArray* pmt_lines = new TObjArray();
   //TLegend* leg = new TLegend(0.75,0.5,0.95,0.95);
 
   Double_t xmin = 0;
@@ -1302,7 +1330,6 @@ void PDSAnalysis::DrawEvent()
 
   // Draw PDS sum
   TH1F* hSum = GetPMTSum();
-  pmt_hists->Add(hSum);
   RemoveADCOffset(hSum);
   //FFTFilter(hSum, -1);
   //GausFilter(hSum);
@@ -1346,7 +1373,7 @@ void PDSAnalysis::DrawEvent()
       y[i] = hSum->GetBinContent(peak_time[i]);
     }
     TGraph* g_peak = new TGraph(n,t,y);
-    pmt_hists->Add(g_peak);
+    pmt_lines->Add(g_peak);
     g_peak->SetMarkerStyle(24);
     g_peak->SetMarkerColor(kRed);
     g_peak->SetMarkerSize(0.3);
@@ -1372,7 +1399,6 @@ void PDSAnalysis::DrawEvent()
 
   // Draw RF mean
   TH1F* hRF = GetRFMean();
-  pmt_hists->Add(hRF);
   hRF->Scale(1./15);
   RemoveADCOffset(hRF,-25);
   xmin = 0;
@@ -1407,7 +1433,6 @@ void PDSAnalysis::DrawEvent()
   // Draw PMTs
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
     TH1F* h = GetPMT(pmt);
-    pmt_hists->Add(h);
     //RemoveADCOffset(h);
     //FFTFilter(h,pmt);
     //GausFilter(h);
@@ -1442,7 +1467,7 @@ void PDSAnalysis::DrawEvent()
 	y[i] = h->GetBinContent(peak_time[i]);
       }
       TGraph* g_peak = new TGraph(n,t,y);
-      pmt_hists->Add(g_peak);
+      pmt_lines->Add(g_peak);
       g_peak->SetMarkerStyle(24);
       g_peak->SetMarkerColor(kRed);
       g_peak->SetMarkerSize(0.2);
@@ -1477,9 +1502,9 @@ void PDSAnalysis::DrawEvent()
   TH1F* h_abs = new TH1F("FFT","FFT;i (122 kHz);Amp.",fNSamples,-1.*fNSamples/2,fNSamples/2);
   h_im->SetLineColor(kRed+2);
   h_abs->SetLineColor(kBlack);
-  pmt_hists->Add(h_re);
-  pmt_hists->Add(h_im);
-  pmt_hists->Add(h_abs);
+  pmt_lines->Add(h_re);
+  pmt_lines->Add(h_im);
+  pmt_lines->Add(h_abs);
   for( Int_t i = 0; i < (Int_t)fNSamples; i++ )
     waveform[i] = hSum->GetBinContent(i+1);
   CArray fft(waveform, fNSamples);
@@ -1510,7 +1535,6 @@ void PDSAnalysis::DrawEvent()
     gets(s);
   }
 
-  pmt_hists->Delete();
   pmt_lines->Delete();
   //c->Close();
 }
