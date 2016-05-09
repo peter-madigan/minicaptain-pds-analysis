@@ -43,6 +43,8 @@ class PDSAnalysis
   static const Int_t kHitSearchWindow_post;
   static const Int_t kBeamSearchWindow_post;
   static const Int_t kBeamSearchWindow_pre;
+  static const Int_t kCalibrationWindow_pre;
+  static const Int_t kCalibrationWindow_post;
 
   static const Double_t kBeamPulseWidth;
   static const Double_t kTPCGateWidth;

@@ -35,12 +35,14 @@ const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
 const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
-const Int_t    PDSAnalysis::kPeakSearchWindow_pre  = 250; // ticks vvv
-const Int_t    PDSAnalysis::kPeakSearchWindow_post = 400; 
-const Int_t    PDSAnalysis::kHitSearchWindow_pre   = 250;
-const Int_t    PDSAnalysis::kHitSearchWindow_post  = 800;
-const Int_t    PDSAnalysis::kBeamSearchWindow_post = 100;
-const Int_t    PDSAnalysis::kBeamSearchWindow_pre  = 350;
+const Int_t    PDSAnalysis::kPeakSearchWindow_pre   = 250; // ticks vvv
+const Int_t    PDSAnalysis::kPeakSearchWindow_post  = 400; 
+const Int_t    PDSAnalysis::kHitSearchWindow_pre    = 250;
+const Int_t    PDSAnalysis::kHitSearchWindow_post   = 800;
+const Int_t    PDSAnalysis::kBeamSearchWindow_post  = 100;
+const Int_t    PDSAnalysis::kBeamSearchWindow_pre   = 350;
+const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -2;
+const Int_t    PDSAnalysis::kCalibrationWindow_post = 150;
 
 const Double_t PDSAnalysis::kBeamPulseWidth = 625e-6;
 const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
@@ -753,12 +755,12 @@ TH1F* PDSAnalysis::GetRFMean(Bool_t first)
 
 Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset) 
 {
-  // calculates an offset from a 400ns interval
+  // calculates an offset from a 100ns interval
   // returns the offset with a std. dev. < 1 ADC or the offset with the smallest std. dev. (the faster of the two)
   Double_t offset = 0.0;
   Double_t offset_min = 0.0; 
 
-  UInt_t n = 100;
+  UInt_t n = 25;
   UInt_t start = 1;
   UInt_t end = n + start;
 
@@ -766,7 +768,7 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   Double_t sumsq = Power(n, 2);
   Double_t stddev = Sqrt(sumsq/n - Power(sum/n,2));
   Double_t stddev_min = Sqrt(sumsq/n - Power(sum/n,2));
-  while( stddev > 1.0 && end < fNSamples ) {
+  while( stddev > 1.0 && end <= fNSamples ) {
     sum = 0;
     sumsq = 0;
     for( UInt_t sample = start; sample < end; sample++ ) {
@@ -912,8 +914,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   std::vector<Int_t> peak_time(1,-9999);
   if( pmt < 0 ) {
     if( fCalibration ) {
-      start = 850;
-      finish = 1000;
+      start = kTrigger - kCalibrationWindow_pre;
+      finish = kTrigger + kCalibrationWindow_post;
     } else if ( fRateMode ) {
       start = kTrigger - kHitSearchWindow_pre;
       finish = kTrigger + kHitSearchWindow_post;
@@ -936,8 +938,8 @@ std::vector<Int_t> PDSAnalysis::FindPeaks(TH1F* h, Int_t pmt)
   
   // Find hits
   if( fCalibration ) {
-    start = 850;
-    finish = 1000;
+    start = kTrigger - kCalibrationWindow_pre;
+    finish = kTrigger + kCalibrationWindow_post;
   } else if( fRateMode ) {
     start = kTrigger - kHitSearchWindow_pre;                                      
     finish = kTrigger + kHitSearchWindow_post;

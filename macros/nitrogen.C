@@ -68,7 +68,11 @@ void nitrogen() {
     if( ich == nch-1 ) break;
     cout << "Chain #" << ich << " contains runs ( ";
     for( int j = 0; j < nrun && i+j <= end_run && ich < nch-1; j++ ) {
-      if( i+j <= 6404 && i+j >= 6379 ) continue;
+      if( i+j <= 6404 && i+j >= 6379 ) 
+	continue;
+      if( i+j == 6318 || i+j == 6379 || i+j == 6380 || i+j == 6381 || i+j == 6353 || i+j == 6352 )
+	continue;
+
       cout << i+j << " ";
       ((TChain*)ch->At(ich))->Add(Form("data/pdsTree%04d/pds*",i+j));
     }
@@ -83,7 +87,7 @@ void nitrogen() {
   cout << ")..." << endl;
   
   // Set up plots
-  Int_t nbins = 100;
+  Int_t nbins = 50;
   Double_t tmin = 0;
   Double_t tmax = 3.2e3;
   Double_t rmin = 0.2;			  
@@ -108,14 +112,6 @@ void nitrogen() {
 
   // Set branches
   for( int ich = 0; ich < nch; ich++ ) {
-    if(	start_run + ich == 6318 ||
-	start_run + ich == 6379 ||
-	start_run + ich == 6380 ||
-	start_run + ich == 6381 ||
-	start_run + ich == 6353 ||
-	start_run + ich == 6352 )
-      continue;
-
     if( ((TChain*)ch->At(ich))->GetEntries() == 0 ) continue;
     ((TChain*)ch->At(ich))->SetBranchStatus("*", kFALSE);
 
@@ -182,7 +178,7 @@ void nitrogen() {
 	Double_t triplet = 0;
 	Double_t singlet = 0;
 	for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	  if( pmt_flag[pmt] && (pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) {
+	  if( pmt_flag[pmt] && (pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) { // only using the pmts with a 'good' calibration
 	    if( Abs(pmt_time[pmt][0]-pds_time[0]) < 30 )
 	      singlet += pmt_peak[pmt][0];
 	    for( Int_t j = 0; j < pmt_hits[pmt]; j++) {
@@ -281,7 +277,7 @@ void nitrogen() {
   hN2->GetXaxis()->SetTimeDisplay(1);
   hN2->GetXaxis()->SetTimeFormat("%m/%d%p");
   hN2->GetYaxis()->SetTitle("Eq. [N_{2}] (ppm)");
-  //hN2->GetXaxis()->SetNdivisions(205);
+  hN2->GetXaxis()->SetNdivisions(205);
   hN2->Draw("AP");
 
   c1->SetLogy(0);
@@ -295,7 +291,7 @@ void nitrogen() {
   htT->GetXaxis()->SetTimeDisplay(1);
   htT->GetXaxis()->SetTimeFormat("%m/%d%p");
   htT->GetYaxis()->SetTitle("#tau_{T} (ns)");
-  //htT->GetXaxis()->SetNdivisions(205);                    
+  htT->GetXaxis()->SetNdivisions(205);                    
   htT->Draw("AP");
 
   c1->SetLogy(0);
@@ -309,7 +305,7 @@ void nitrogen() {
   hO2->GetXaxis()->SetTimeDisplay(1);
   hO2->GetXaxis()->SetTimeFormat("%m/%d%p");
   hO2->GetYaxis()->SetTitle("Eq. [O_{2}] (ppm)");
-  //h02->GetXaxis()->SetNdivisions(205);                                             
+  hO2->GetXaxis()->SetNdivisions(205);                                             
   hO2->Draw("AP");
 
   c1->SetLogy(0);
@@ -323,7 +319,7 @@ void nitrogen() {
   hr->GetXaxis()->SetTimeDisplay(1);
   hr->GetXaxis()->SetTimeFormat("%m/%d%p");
   hr->GetYaxis()->SetTitle("Triplet/singlet ratio");
-  //hr->GetXaxis()->SetNdivisions(205);                                                            
+  hr->GetXaxis()->SetNdivisions(205);                                                            
   hr->Draw("AP");
 
   c1->SetLogy(0);
@@ -364,7 +360,7 @@ vector<Double_t> GetO2AndError(TFitResultPtr& f) {
 
   Double_t kQN2 = 0.000110;
   Double_t kQN2_err = 0.000010;
-  Double_t N2 = 2.4;
+  Double_t N2 = 3.4;
   Double_t N2_err = 0.5;
 
   O2[0] = (1 / tau1 - 1 / tau0 - kQN2 * N2) / kQ;
