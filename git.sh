@@ -4,6 +4,11 @@
 
 git add macros/*
 git add old/*
+git add plots/*
+git add purity/*.C
+git add purity/*.cc
+git add purity/*.h
+git add purity/*.sh
 git add *.cc
 git add *.h
 git add *.C
