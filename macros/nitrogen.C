@@ -56,7 +56,7 @@ void nitrogen() {
   static const Int_t start_run = 6166;
   static const Int_t end_run   = 6405;
   static const Int_t nch = (end_run - start_run)/10 + 1;
-  static const Int_t nrun = 10;
+  static const Int_t nrun = 20;
   TObjArray* ch = new TObjArray();
   for( Int_t ich = 0; ich < nch; ich++ )
     ch->Add(new TChain("pdsEvTree","pdsEvTree"));
@@ -68,8 +68,8 @@ void nitrogen() {
     if( ich == nch-1 ) break;
     cout << "Chain #" << ich << " contains runs ( ";
     for( int j = 0; j < nrun && i+j <= end_run && ich < nch-1; j++ ) {
-      if( i+j <= 6404 && i+j >= 6379 ) 
-	continue;
+      //if( i+j <= 6404 && i+j >= 6379 ) 
+      //continue;
       if( i+j == 6318 || i+j == 6379 || i+j == 6380 || i+j == 6381 || i+j == 6353 || i+j == 6352 )
 	continue;
 
