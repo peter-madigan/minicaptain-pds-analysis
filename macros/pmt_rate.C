@@ -30,18 +30,31 @@ void pmt_rate(){
 	  continue;
 	}
 	if( pmt_hits[pmt] > 1 ) continue;
-	Double_t part_rate = pmt_hits[pmt] / n / (250 + 800) / 4e-9 * 2;
+	Double_t part_rate = 1. * pmt_hits[pmt] / n / (250 + 800) / 4e-9;
 	h->Fill(pmt+1, part_rate);
       }
+
+  vector<Double_t> x(15,0);
+  vector<Double_t> x_err(15,0);
+  vector<Double_t> rate(15,0);
+  vector<Double_t> rate_err(15,0);
+
+  for( Int_t i = 1; i < 15 + 1; i++ ) {
+    x[i-1] = i;
+    rate[i-1] = h->GetBinContent(i);
+    rate_err[i-1] = h->GetBinError(i);
+  }
+
+  TGraphErrors* g = new TGraphErrors(x.size(),&x[0],&rate[0],&x_err[0],&rate_err[0]);
   
-  h->GetXaxis()->SetTitle("pmt");
-  h->GetYaxis()->SetTitle("rate (Hz)");
-  h->SetTitle("Background rate");
-  h->SetMarkerStyle(20);
-  h->SetMarkerColor(kBlack);
-  h->SetLineColor(kBlack);
+  g->GetXaxis()->SetTitle("pmt");
+  g->GetYaxis()->SetTitle("rate (Hz)");
+  g->SetTitle("Background rate");
+  g->SetMarkerStyle(20);
+  g->SetMarkerColor(kBlack);
+  g->SetLineColor(kBlack);
   
-  h->Draw("e1");
+  g->Draw("AP");
   
   c1->SetLogy();
   c1->SetGridy();

@@ -49,7 +49,7 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
-  // minimum 1pe ADC is set to 5 
+  // minimum 1pe ADC is set to ~5 
   kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
   kADC_to_pe.push_back(-1./5.000); // #2
   kADC_to_pe.push_back(-1./5.000); // #3
@@ -66,7 +66,7 @@ void PDSAnalysis::InitializeADC_to_pe() {
   kADC_to_pe.push_back(-1./5.000); // #12
   kADC_to_pe.push_back(-1./5.000); // #13
   kADC_to_pe.push_back(-1./5.000); // #14
-  kADC_to_pe.push_back(-1./5.000); // #15
+  kADC_to_pe.push_back(-1./4.917); // #15
 
   if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
@@ -499,7 +499,8 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   // Find peaks in histogram   
   std::vector<Int_t> peak_time = FindPeaks(hPMT);
   peak_time = CheckHits(hPMT, -1, peak_time);
-  pds_hits = peak_time.size();
+  if( (Int_t)peak_time.size() < kMaxNHits ) pds_hits = peak_time.size();
+  else                                      pds_hits = kMaxNHits;
   if( peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
       pds_ratio = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);

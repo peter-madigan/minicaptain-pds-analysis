@@ -29,15 +29,17 @@ void combined_analysis(){
 
   TGraphErrors* e_LT = new TGraphErrors("e_lifetime.txt","%lg %lg %lg %lg","");
   c1->cd(1);
+  e_LT->SetMarkerStyle(19);
   e_LT->Draw("AP");
 
   TFile* scint_fi = new TFile("scint_lifetime.root","READ");
   TGraphAsymmErrors* scint_LT = (TGraphAsymmErrors*)scint_fi->Get("Graph");
   c1->cd(2);
+  scint_LT->SetMarkerStyle(19);
   scint_LT->Draw("AP");
 
   TGraph* H2O_conc = new TGraph("H2O_conc.txt","%lg %lg","");
-  H2O_conc->SetMarkerStyle(20);
+  H2O_conc->SetMarkerStyle(19);
   c1->cd(3);
   H2O_conc->Draw("AP");
   
@@ -98,20 +100,21 @@ void combined_analysis(){
     // Calculate mean scintillation lifetime                                         
     cout << "Calc scintillation lifetime!" << endl;
     Double_t n_temp = 0;
-    Double_t neff_temp = 0;
     Double_t y_temp = 0;
     Double_t ey_temp = 0;
+    Double_t std_dev = 0;
     for( Int_t i_scint = 0; i_scint < n_scint; i_scint++ )
       if( t_scint[i_scint] <= t_arr[i_curr] + et_arr[i_curr] &&
           t_scint[i_scint] >= t_arr[i_curr] - et_arr[i_curr] ) {
         n_temp++;
-	neff_temp += eyl_scint[i_scint];
-        y_temp += y_scint[i_scint] * eyl_scint[i_scint];
+        y_temp += y_scint[i_scint];
         ey_temp += Power(eyl_scint[i_scint]/y_scint[i_scint],2);
+	std_dev += Power(y_scint[i_scint],2);
       }
     if( n_temp != 0 ) {
-      y_temp  = y_temp/neff_temp;
-      ey_temp = Sqrt(ey_temp/n_temp) * y_temp;
+      y_temp  = y_temp/n_temp;
+      std_dev = Sqrt(std_dev/n_temp - Power(y_temp,2));
+      ey_temp = Sqrt((ey_temp/n_temp) * Power(y_temp,2) + Power(std_dev,2) );
     }
 
     tLT_arr.push_back(y_temp / 1000);
@@ -120,20 +123,21 @@ void combined_analysis(){
     // Calculate mean electron lifetime
     cout << "Calc electron lifetime!" << endl;
     n_temp = 0;
-    neff_temp = 0;
     y_temp = 0;
     ey_temp = 0;
+    std_dev = 0;
     for( Int_t i_e = 0; i_e < n_e; i_e++ )
       if( t_e[i_e] <= t_arr[i_curr] + et_arr[i_curr] &&
 	  t_e[i_e] >= t_arr[i_curr] - et_arr[i_curr] ) {
 	n_temp++;
-	neff_temp += ey_e[i_e];
-	y_temp += y_e[i_e] * ey_e[i_e];
+	y_temp += y_e[i_e];
 	ey_temp += Power(ey_e[i_e]/y_e[i_e],2);
+	std_dev += Power(y_e[i_e],2);
       }
     if( n_temp != 0 ) {
-      y_temp  = y_temp/neff_temp;
-      ey_temp = Sqrt(ey_temp/n_temp) * y_temp;
+      y_temp  = y_temp/n_temp;
+      std_dev = Sqrt(std_dev/n_temp - Power(y_temp,2));
+      ey_temp = Sqrt((ey_temp/n_temp) * Power(y_temp,2) + Power(std_dev,2));
     }
 
     eLT_arr.push_back(y_temp);
@@ -144,17 +148,22 @@ void combined_analysis(){
     n_temp = 0;
     y_temp = 0;
     ey_temp = 0.2;
+    std_dev = 0;
     for( Int_t i_H2O = 0; i_H2O < n_H2O; i_H2O++ )
       if( t_H2O[i_H2O] <= t_arr[i_curr] + et_arr[i_curr] &&
           t_H2O[i_H2O] >= t_arr[i_curr] - et_arr[i_curr] ) {
 	n_temp++;
         y_temp += y_H2O[i_H2O];
+	std_dev += Power(y_H2O[i_H2O],2);
       } 
-    if(n_temp != 0 )
+    if(n_temp != 0 ) {
       y_temp  = y_temp/n_temp;
+      std_dev = Sqrt(std_dev/n_temp - Power(y_temp,2));
+      ey_temp = Sqrt(Power(ey_temp,2) + Power(std_dev,2));
+    }
     
     H2O_arr.push_back(y_temp / 1000);
-    eH2O_arr.push_back(ey_temp / 1000 / Sqrt(n_temp));
+    eH2O_arr.push_back(ey_temp / 1000);
 
     // Calculate O2 and N2 concentration
     cout << "Calc O2 and N2 concentration!" << endl;
@@ -216,7 +225,7 @@ void combined_analysis(){
   gElectronLifetime->GetYaxis()->SetRangeUser(5,50);
   gElectronLifetime->GetYaxis()->SetMoreLogLabels(1);
   gElectronLifetime->GetYaxis()->SetNoExponent(1);
-  gElectronLifetime->GetYaxis()->SetTitle("Lifetime (#musec)");
+  gElectronLifetime->GetYaxis()->SetTitle("Lifetime (#mus)");
   gElectronLifetime->GetXaxis()->SetTimeDisplay(1);
   gElectronLifetime->GetXaxis()->SetTimeFormat("%m/%d");
   gElectronLifetime->GetXaxis()->SetNdivisions(205);
@@ -228,7 +237,7 @@ void combined_analysis(){
   c2->Update();
 
   TCanvas* c3 = new TCanvas();
-  c3->cd();//->SetLogy();
+  c3->cd()->SetLogy();
   gH2OConcentration->SetMarkerStyle(20);
   gH2OConcentration->SetMarkerColor(kBlue+2);
   gH2OConcentration->SetLineColor(kBlack);
@@ -245,10 +254,10 @@ void combined_analysis(){
   gN2Concentration->SetFillColor(kWhite);
   gN2Concentration->SetTitle("[N_{2}] (ppm)");
 
-  gH2OConcentration->GetYaxis()->SetRangeUser(0,30);
+  gH2OConcentration->GetYaxis()->SetRangeUser(0.3,30);
   gH2OConcentration->GetYaxis()->SetMoreLogLabels(1);
   gH2OConcentration->GetYaxis()->SetNoExponent(1);
-  gH2OConcentration->GetYaxis()->SetTitle("Concentration (ppm [N_{2}] OR ppb [O_{2}] OR ppb [H_{2}O])");
+  gH2OConcentration->GetYaxis()->SetTitle("Concentration");
   gH2OConcentration->GetXaxis()->SetTimeDisplay(1);
   gH2OConcentration->GetXaxis()->SetTimeFormat("%m/%d");
   gH2OConcentration->GetXaxis()->SetNdivisions(205);
