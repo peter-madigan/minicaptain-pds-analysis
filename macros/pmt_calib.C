@@ -2,11 +2,11 @@ static const Int_t kNPMTs = 15;
 static const Int_t kMaxNHits = 200;
 
 void pmt_calib() {
-  gStyle->SetOptStat(1110);
+  gStyle->SetOptStat(0);
   gStyle->SetOptFit(1);
-  gStyle->SetStatX(0.2);
+  gStyle->SetStatX(0.4);
   gStyle->SetStatY(1.0);
-  gStyle->SetStatW(0.15);
+  gStyle->SetStatW(0.2);
   gStyle->SetStatH(0.3);
 
   TCanvas* c_int = new TCanvas("c_int","PMT calib (integral)",1200,800);
@@ -19,9 +19,9 @@ void pmt_calib() {
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
   ch->Add("calib/pdsTree9989/pdsEvTree*");
-  ch->Add("calib/pdsTree9990/pdsEvTree*");
-  ch->Add("calib/pdsTree9991/pdsEvTree*");
-  ch->Add("calib/pdsTree9992/pdsEvTree*");
+  //ch->Add("calib/pdsTree9990/pdsEvTree*");
+  //ch->Add("calib/pdsTree9991/pdsEvTree*");
+  //ch->Add("calib/pdsTree9992/pdsEvTree*");
   ch->Add("calib/pdsTree9994/pdsEvTree*");
   ch->Add("calib/pdsTree9995/pdsEvTree*");
   ch->Add("calib/pdsTree9996/pdsEvTree*");
@@ -95,12 +95,15 @@ void pmt_calib() {
     // peak fit
     Double_t norm = 1./((TH1F*)h_peak->At(pmt))->Integral();
     ((TH1F*)h_peak->At(pmt))->Scale(norm);
-    Double_t low_edge = -25;
+    Double_t low_edge = -12;
     Double_t high_edge = 0;
-    fit -> SetRange(low_edge, high_edge);
-    fit->SetParameters(1,0,1,0.01,-7,1);
+    Double_t max = ((TH1F*)h_peak->At(pmt))->GetMaximum();
+    Double_t pe_peak = ((TH1F*)h_peak->At(pmt))->GetBinContent(((TH1F*)h_peak->At(pmt))->FindBin(-8));
+
+    fit->SetRange(low_edge, high_edge);
+    fit->SetParameters(max,-2,0.5,pe_peak,-8,3);
     fit->SetParLimits(0,0,2);
-    fit->SetParLimits(1,-1,0);
+    fit->SetParLimits(1,-4,0);
     fit->SetParLimits(2,low_edge,high_edge);
     fit->SetParLimits(3,0,2);
     fit->SetParLimits(4,low_edge,high_edge);
@@ -132,9 +135,9 @@ void pmt_calib() {
     low_edge = -50;
     high_edge =  0;
     fit -> SetRange(low_edge, high_edge);
-    fit->SetParameters(1,0,1,0.01,-10,1);
+    fit->SetParameters(1,0,1,0.01,-20,1);
     fit->SetParLimits(0,0,2);
-    fit->SetParLimits(1,-1,0);
+    fit->SetParLimits(1,-15,0);
     fit->SetParLimits(2,low_edge,high_edge);
     fit->SetParLimits(3,0,2);
     fit->SetParLimits(4,low_edge,high_edge);

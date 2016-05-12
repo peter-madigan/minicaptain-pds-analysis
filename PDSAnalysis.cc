@@ -33,6 +33,7 @@ const Double_t PDSAnalysis::kSampleRate     = 250000000.;
 const Double_t PDSAnalysis::kSumThreshold      = 3.00; // pe
 const Double_t PDSAnalysis::kRFThreshold       = 50.0; // ADC
 const Double_t PDSAnalysis::kPMTThreshold      = 1.00; // pe
+const Double_t PDSAnalysis::kVetoThreshold     = 3.00; // ADC ** not used **
 const Double_t PDSAnalysis::kRatioThreshold    = 0.50;
 
 const Int_t    PDSAnalysis::kPeakSearchWindow_pre   = 250; // ticks vvv
@@ -41,7 +42,7 @@ const Int_t    PDSAnalysis::kHitSearchWindow_pre    = 250;
 const Int_t    PDSAnalysis::kHitSearchWindow_post   = 800;
 const Int_t    PDSAnalysis::kBeamSearchWindow_post  = 100;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre   = 350;
-const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -22; // 880-920 tick
+const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -32; // 880-910 tick
 const Int_t    PDSAnalysis::kCalibrationWindow_post =  62;
 
 const Double_t PDSAnalysis::kBeamPulseWidth = 625e-6;
@@ -49,31 +50,30 @@ const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
 void PDSAnalysis::InitializeADC_to_pe() {
-  // minimum 1pe ADC is set to ~5 
   kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
-  kADC_to_pe.push_back(-1./5.000); // #2
-  kADC_to_pe.push_back(-1./5.000); // #3
-  kADC_to_pe.push_back(-1./5.000); // #4
-  kADC_to_pe.push_back(-1./7.009); // #5
+  kADC_to_pe.push_back(-1./4.92); // #2
+  kADC_to_pe.push_back(-1./6.51); // #3
+  kADC_to_pe.push_back(-1./6.70); // #4
+  kADC_to_pe.push_back(-1./7.90); // #5
 
-  kADC_to_pe.push_back(-1./5.000); // #6
-  kADC_to_pe.push_back(-1./5.000); // #7
-  kADC_to_pe.push_back(-1./5.000); // #8 
-  kADC_to_pe.push_back(-1./6.260); // #9
-  kADC_to_pe.push_back(-1./5.192); // #10
+  kADC_to_pe.push_back(-1./4.70); // #6
+  kADC_to_pe.push_back(-1./5.39); // #7
+  kADC_to_pe.push_back(-1./5.40); // #8 
+  kADC_to_pe.push_back(-1./7.98); // #9
+  kADC_to_pe.push_back(-1./7.86); // #10
 
-  kADC_to_pe.push_back(-1./5.000); // #11
-  kADC_to_pe.push_back(-1./5.000); // #12
-  kADC_to_pe.push_back(-1./5.000); // #13
-  kADC_to_pe.push_back(-1./5.000); // #14
-  kADC_to_pe.push_back(-1./4.917); // #15
+  kADC_to_pe.push_back(-1./6.00); // #11
+  kADC_to_pe.push_back(-1./6.00); // #12
+  kADC_to_pe.push_back(-1./9.04); // #13
+  kADC_to_pe.push_back(-1./6.07); // #14
+  kADC_to_pe.push_back(-1./7.00); // #15
 
   if( fCalibration )
     for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
       kADC_to_pe[pmt] = 1.0;
 }
 void PDSAnalysis::InitializeADCtick_to_pe() {
-  // not correct
+  // do not use
   kADCtick_to_pe.push_back(-1./3.616); // #1 Dead pmt?
   kADCtick_to_pe.push_back(-1./3.464); // #2   
   kADCtick_to_pe.push_back(-1./3.546); // #3   
@@ -459,7 +459,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
       pmt_peak[pmt][hit] = hPMT->GetBinContent(peak_time[hit]);
       pmt_FWHM[pmt][hit] = FWHM(hPMT, peak_time[hit]);
       pmt_time[pmt][hit] = FindEvTime(hPMT, peak_time[hit]);
-      pmt_integral[pmt][hit] = Integral(hPMT, peak_time[hit]);
+      pmt_integral[pmt][hit] = FixedIntegral(hPMT, peak_time[hit]);
     }
   } else {
     pmt_ratio[pmt] = -9999;
@@ -486,8 +486,8 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   // Create PMT histogram        
   TH1F* hPMT = GetPMTSum();
   pds_offset = RemoveADCOffset(hPMT);
-  //if( !fCalibration )
-  //FFTFilter(hPMT, -1);
+  //if( !fCalibration )                                 
+  //FFTFilter(hPMT, -1);                                              
   //GausFilter(hPMT);
 
   // Check beam                                          
@@ -511,7 +511,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
       pds_peak[hit] = hPMT->GetBinContent(peak_time[hit]);
       pds_FWHM[hit] = FWHM(hPMT, peak_time[hit]);
       pds_time[hit] = FindEvTime(hPMT, peak_time[hit]);
-      pds_integral[hit] = Integral(hPMT, peak_time[hit]);
+      pds_integral[hit] = FixedIntegral(hPMT, peak_time[hit]);
     } 
   } else {
     pds_ratio = -9999;
@@ -524,26 +524,11 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   // Flag if not noise 
   pds_flag = IsPDSEvent(hPMT, peak_time);
 
-  // Check beam
-  //TH1F* hRF = GetRFMean();
-  //RemoveADCOffset(hRF);
-  //rf_time = FindRFTime(hRF, (Int_t)pds_time[0]);
-  //inBeamWindow  = !(rf_time == -9999);
-  //isBeamTrigger = (subtrig == 0);
-
   // Time weighting
   if( inBeamWindow )
     timeWt = 1./((kBeamSearchWindow_pre + kBeamSearchWindow_post));
   else
     timeWt = 1./((kPeakSearchWindow_pre + kPeakSearchWindow_post) * kTick_to_ns);
-  
-  // PMT delta t ** not used currently and not entirely necessary**
-  /* for( UInt_t ipmt = 0; ipmt < kNPMTs; ipmt++ )
-    for( UInt_t jpmt = 0; jpmt < kNPMTs; jpmt++ )
-    if( pmt_time[ipmt][0] == -9999 || pmt_time[jpmt][0] == -9999 )
-    pmt_dtime[ipmt][jpmt] = -9999;
-    else
-    pmt_dtime[ipmt][jpmt] = pmt_time[ipmt][0] - pmt_time[jpmt][0]; */
   
   // Store waveform for calibration FFT                                           
   if( fMeanWaveform.size() != kNPMTs+1 ) {
@@ -574,7 +559,6 @@ Int_t PDSAnalysis::QuickCheckMult(std::vector<Double_t> &rf_pulse)
 std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t> &peak_time) 
 {
   if( peak_time[0] < 0 ) return peak_time;
-  if( peak_time.size() == 1 && h->GetBinContent(peak_time[0]) < 0 ) return peak_time;
   
   // Sort peaks in order of time
   Double_t prompt_time;
@@ -585,8 +569,9 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
   // Make cut vector
   std::vector<Bool_t> cut_hit(peak_time.size(),false);
 
-  // Compare forward ratio
+  // Compare forward ratio and check positive
   for( UInt_t i = 0; i < peak_time.size(); i++ ) {
+    // Ratios
     Double_t forward_ratio = 0;
     Double_t forward_dt = 100;
     Double_t backward_ratio = 0;
@@ -598,26 +583,25 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
       backward_ratio = -h->GetBinContent(peak_time[i-1])/h->GetBinContent(peak_time[i]);
       backward_dt = Abs( peak_time[i-1] - peak_time[i] );
     }
+
+    // Fixed integral
+    Double_t integral = FixedIntegral(h, peak_time[i]);
     
+    // Cut hits
     if( forward_ratio > kRatioThreshold && forward_dt < 10 ) 
       cut_hit[i] = true;
     else if( backward_ratio > kRatioThreshold && backward_dt < 10 )
       cut_hit[i] = true;
     else if( h->GetBinContent(peak_time[i]) >= 0 )
       cut_hit[i] = true;
+    else if( integral > -11 )
+      cut_hit[i] = true;
     else 
       cut_hit[i] = false;
-  }
 
-  // Check integral
-  /*if( !fCalibration )
-    for( UInt_t i = 0; i < peak_time.size(); i++ ) {
-      Double_t integral = Integral(h, peak_time[i]);
-      if( pmt < 0 && integral > -kSumThreshold )
-	cut_hit[i] = true;
-      else if( pmt >= 0 && integral > kPMTThreshold / kADCtick_to_pe[pmt] )
-	cut_hit[i] = true;
-	}*/
+    //if( !cut_hit[i] )
+    //std::cout << pmt+1 << " " << integral << std::endl;
+  }
 
   // Cut peaks that fail test and place element closest to prompt at start
   std::vector<Int_t> new_vector;
@@ -669,13 +653,20 @@ Bool_t PDSAnalysis::IsPDSEvent(TH1F* h, std::vector<Int_t> &peak_time)
 
 void PDSAnalysis::InitializeWaveforms()
 {
-  for( Int_t pmt = 0; pmt < kNPMTs + 2; pmt++ ) {
+  // Initializes waveforms
+  // #0-14 pmt waveforms
+  // #15   sum waveform
+  // #16   rf mean
+  // #17   veto
+  for( Int_t pmt = 0; pmt < kNPMTs + 3; pmt++ ) {
     if( pmt < kNPMTs )
       fWaveform.push_back(GetPMT(pmt,true));
     else if( pmt == kNPMTs )
       fWaveform.push_back(GetPMTSum("",true));
-    else
+    else if( pmt == kNPMTs+1 )
       fWaveform.push_back(GetRFMean(true));
+    else
+      fWaveform.push_back(GetVetoMean(true));
   }
 }
 
@@ -754,10 +745,29 @@ TH1F* PDSAnalysis::GetRFMean(Bool_t first)
   return h;
 }
 
+TH1F* PDSAnalysis::GetVetoMean(Bool_t first)
+{
+  TH1F* h;
+  if( first ) {
+    TString name = "hVetoMean";
+    h = new TH1F(name, name, fNSamples, 0, fNSamples);
+  } else
+    h = fWaveform[kNPMTs+2];
+
+  h->Reset();
+  for( UInt_t board = 0; board < kNBoards; board++ )
+    for( UInt_t channel = 6; channel < 8; channel++ )
+      for( UInt_t sample = 0; sample < fNSamples; sample++ )
+	h->Fill(sample, fDigitizerWaveform[board][channel][sample]);
+  h->Scale(1.0/(3*2));
+
+  return h;
+}
+
 Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset) 
 {
   // calculates an offset from a 100ns interval
-  // returns the offset with a std. dev. < 1 ADC or the offset with the smallest std. dev. (the faster of the two)
+  // returns the offset with a std. dev. < 0.5 ADC or the offset with the smallest std. dev. (the faster of the two)
   Double_t offset = 0.0;
   Double_t offset_min = 0.0; 
 
@@ -769,7 +779,7 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
   Double_t sumsq = Power(n, 2);
   Double_t stddev = Sqrt(sumsq/n - Power(sum/n,2));
   Double_t stddev_min = Sqrt(sumsq/n - Power(sum/n,2));
-  while( stddev > 1.0 && end <= fNSamples ) {
+  while( stddev > 0.5 && end <= fNSamples ) {
     sum = 0;
     sumsq = 0;
     for( UInt_t sample = start; sample < end; sample++ ) {
@@ -782,7 +792,7 @@ Double_t PDSAnalysis::RemoveADCOffset(TH1F* h, Double_t left_offset)
       offset_min = offset;
       stddev_min = stddev;
     }
-    start += n/2;
+    start++;
     end = n + start;
   }
   // Remove offset
@@ -1105,8 +1115,8 @@ Double_t PDSAnalysis::FixedIntegral(TH1F* h, Int_t peak_time)
   // Integrates peak from -5 ticks to +5 ticks
   Int_t nTick = 5;
   Double_t integral = 0;
-  for( Int_t sample = peak_time - nTick; sample < peak_time + nTick; sample++ )
-    integral += h->GetBinContent(sample);
+  for( Int_t sample = peak_time - nTick; sample < peak_time + nTick - 1; sample++ )
+    integral += (h->GetBinContent(sample) + h->GetBinContent(sample+1))/2;
 
   return integral;
 }
@@ -1316,8 +1326,8 @@ void PDSAnalysis::PrintEvent()
 void PDSAnalysis::DrawEvent()
 {
   TLatex latex;
-  gStyle->SetOptStat(0);
-  fCanvas->cd();
+  //gStyle->SetOptStat(0);
+  //fCanvas->cd();
   //fCanvas->SetRightMargin(0.25);
   //fCanvas->SetGridx();
   //fCanvas->SetGridy();
@@ -1399,6 +1409,17 @@ void PDSAnalysis::DrawEvent()
     l_time->SetLineStyle(2);
     l_time->Draw("same");
   }
+
+  // Draw veto
+  TH1F* hVeto = GetVetoMean();
+  RemoveADCOffset(hVeto,-75);
+  xmin = 0;
+  xmax = fNSamples;
+  hVeto->GetXaxis()->SetRangeUser(xmin,xmax);
+  hVeto->GetYaxis()->SetRangeUser(ymin,ymax);
+  hVeto->SetLineColor(kBlack);
+  hVeto->Draw("l same");
+  latex.DrawLatex(.02*fNSamples,-75+5,"#scale[0.4]{#font[4]{Veto}}");
 
   // Draw RF mean
   TH1F* hRF = GetRFMean();

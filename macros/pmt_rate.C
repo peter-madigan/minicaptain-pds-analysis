@@ -29,7 +29,6 @@ void pmt_rate(){
 	  cout << "Big event!\t" << i << "\t" << pmt_hits[pmt] << "hits!" << endl;
 	  continue;
 	}
-	if( pmt_hits[pmt] > 1 ) continue;
 	Double_t part_rate = 1. * pmt_hits[pmt] / n / (250 + 800) / 4e-9;
 	h->Fill(pmt+1, part_rate);
       }

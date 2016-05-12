@@ -35,6 +35,7 @@ class PDSAnalysis
   static const Double_t kSumThreshold;
   static const Double_t kRFThreshold;
   static const Double_t kPMTThreshold;
+  static const Double_t kVetoThreshold;
   static const Double_t kRatioThreshold;
 
   static const Int_t kPeakSearchWindow_pre;
@@ -138,6 +139,7 @@ class PDSAnalysis
   TH1F* GetPMT(Int_t pmt, Bool_t first=false);
   TH1F* GetPMTSum(TString s="", Bool_t first=false);
   TH1F* GetRFMean(Bool_t first=false);
+  TH1F* GetVetoMean(Bool_t first=false);
   Double_t RemoveADCOffset(TH1F* h, Double_t left_offset=0.0);
   TH1F* GausFilter(TH1F* h);
   TH1F* FFTFilter(TH1F* h, Int_t pmt);
