@@ -41,8 +41,8 @@ const Int_t    PDSAnalysis::kHitSearchWindow_pre    = 250;
 const Int_t    PDSAnalysis::kHitSearchWindow_post   = 800;
 const Int_t    PDSAnalysis::kBeamSearchWindow_post  = 100;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre   = 350;
-const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -2;
-const Int_t    PDSAnalysis::kCalibrationWindow_post = 150;
+const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -22; // 880-920 tick
+const Int_t    PDSAnalysis::kCalibrationWindow_post =  62;
 
 const Double_t PDSAnalysis::kBeamPulseWidth = 625e-6;
 const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;

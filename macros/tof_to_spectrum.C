@@ -76,7 +76,7 @@ void tof_to_spectrum() {
   Double_t xmax = 1e3;
   Int_t nbinsy = 200;
   Double_t ymin= 0;
-  Double_t ymax= 8e2;
+  Double_t ymax= 2e2;
 
   TF1* tofFromEnergy = new TF1("tofFromEnergy","[0]/[1]*((x+[2])/sqrt((x+[2])^2-[2]^2)-1)*1e9",10,800);
   tofFromEnergy->FixParameter(0, tof_length);
@@ -112,10 +112,10 @@ void tof_to_spectrum() {
       // Loop over pmts
       Double_t integral_sum = 0;
       for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	if( pmt_flag[pmt] ) {
+	if( pmt_flag[pmt] && (pmt == 4 || pmt == 8 || pmt == 9 || pmt == 14) ) {
 	  for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
-	    if( pmt_time[pmt][hit] >= pmt_time[pmt][0] ) { 
-	      integral_sum += pmt_integral[pmt][hit];
+	    if( pmt_time[pmt][hit] >= pds_time[0]-10 ) { 
+	      integral_sum += pmt_peak[pmt][hit];
 	    }
 	  }
 	}
