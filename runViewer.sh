@@ -6,5 +6,5 @@ fileno=0
 if [ ! $1 ]; then
     root -l "PDSAnalysis.cc+(\"outFile_1.root\",1,\"pdsEvTree_.root\",\"v\")"
 else
-    root -l "PDSAnalysis.cc+(\"$datadir/run$1/outFile_$fileno.root\",$1,\"pdsEvTree_.root\",\"s r v\")" 
+    root -l "PDSAnalysis.cc+(\"$datadir/run$1/outFile_$fileno.root\",$1,\"pdsEvTree_.root\",\"v r\")" 
 fi

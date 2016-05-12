@@ -450,7 +450,7 @@ void PDSAnalysis::DoPMTAnalysis(Int_t pmt, Double_t rf_time)
   if( (Int_t)peak_time.size() < kMaxNHits ) pmt_hits[pmt] = peak_time.size();
   else                                      pmt_hits[pmt] = kMaxNHits; 
 
-  if( peak_time[0] != -9999 ) {
+  if( pmt_hits[pmt] > 0 && peak_time[0] != -9999 ) {
     if( peak_time.size() > 1 )
       pmt_ratio[pmt] = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
     else
@@ -501,7 +501,7 @@ void PDSAnalysis::DoPDSAnalysis(Double_t rf_pulse) {
   peak_time = CheckHits(hPMT, -1, peak_time);
   if( (Int_t)peak_time.size() < kMaxNHits ) pds_hits = peak_time.size();
   else                                      pds_hits = kMaxNHits;
-  if( peak_time[0] != -9999 ) {
+  if( pds_hits > 0 && peak_time[0] > 0) {
     if( peak_time.size() > 1 )
       pds_ratio = -hPMT->GetBinContent(peak_time[1])/hPMT->GetBinContent(peak_time[0]);
     else
@@ -627,6 +627,9 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
   // Check if oversize
   if( (Int_t)new_vector.size() > kMaxNHits )
     std::cout << "WARNING! Hits greater than kMaxNHits!" << std::endl;
+
+  if( new_vector[0] == -9999 )
+    new_vector.erase(new_vector.begin());
 
   return new_vector;
 }
