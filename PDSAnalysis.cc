@@ -1,6 +1,7 @@
 #include <sstream>
 #include <unistd.h>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <complex>
 #include <valarray>
@@ -42,36 +43,13 @@ const Int_t    PDSAnalysis::kHitSearchWindow_pre    = 250;
 const Int_t    PDSAnalysis::kHitSearchWindow_post   = 800;
 const Int_t    PDSAnalysis::kBeamSearchWindow_post  = 100;
 const Int_t    PDSAnalysis::kBeamSearchWindow_pre   = 350;
-const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -32; // 880-910 tick
-const Int_t    PDSAnalysis::kCalibrationWindow_post =  62;
+const Int_t    PDSAnalysis::kCalibrationWindow_pre  = -22; // 870-930 tick
+const Int_t    PDSAnalysis::kCalibrationWindow_post =  82;
 
 const Double_t PDSAnalysis::kBeamPulseWidth = 625e-6;
 const Double_t PDSAnalysis::kTPCGateWidth   = 4e-3;
 
 const Double_t PDSAnalysis::kTick_to_ns     =  4.0/1.0;
-void PDSAnalysis::InitializeADC_to_pe() {
-  kADC_to_pe.push_back(-1./99999); // #1 Dead pmt
-  kADC_to_pe.push_back(-1./4.92); // #2
-  kADC_to_pe.push_back(-1./6.51); // #3
-  kADC_to_pe.push_back(-1./6.70); // #4
-  kADC_to_pe.push_back(-1./7.90); // #5
-
-  kADC_to_pe.push_back(-1./4.70); // #6
-  kADC_to_pe.push_back(-1./5.39); // #7
-  kADC_to_pe.push_back(-1./5.40); // #8 
-  kADC_to_pe.push_back(-1./7.98); // #9
-  kADC_to_pe.push_back(-1./7.86); // #10
-
-  kADC_to_pe.push_back(-1./6.00); // #11
-  kADC_to_pe.push_back(-1./6.00); // #12
-  kADC_to_pe.push_back(-1./9.04); // #13
-  kADC_to_pe.push_back(-1./6.07); // #14
-  kADC_to_pe.push_back(-1./7.00); // #15
-
-  if( fCalibration )
-    for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
-      kADC_to_pe[pmt] = 1.0;
-}
 void PDSAnalysis::InitializeADCtick_to_pe() {
   // do not use
   kADCtick_to_pe.push_back(-1./3.616); // #1 Dead pmt?
@@ -162,6 +140,31 @@ PDSAnalysis::~PDSAnalysis()
   if( !fWaveform.empty() )
     for( UInt_t i = 0; i < fWaveform.size(); i++ )
       fWaveform[i]->Delete();
+}
+
+void PDSAnalysis::InitializeADC_to_pe() {
+  std::ifstream fi("PMTCalibrationData.dat");
+  if( !fi.is_open() )
+    std::cout << "WARNING! Calibration data not found!" << "\n"
+	      << "Running without calibrated values..." << std::endl;
+
+  if( !fi.is_open() || fCalibration ) {
+    for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
+      kADC_to_pe.push_back(1.0);
+
+  } else {
+    std::cout << "Calibration data:" << std::endl;
+    std::string line;
+    while( getline(fi, line) ) {
+      std::istringstream iss(line);
+      std::string type;
+      Double_t pmt, value;
+      iss >> type >> pmt >> value;
+      std::cout << type << "(" << pmt << ") = " << value << std::endl;
+      if( type == "1PE" )
+	kADC_to_pe.push_back(1./value);
+    }
+  }
 }
 
 TTree* PDSAnalysis::ImportTree(TString fiName)
@@ -272,6 +275,9 @@ void PDSAnalysis::Loop()
   Bool_t TPC0 = false;
   Bool_t TPC1 = false;
 
+  fPMTTree->GetEntry(0);
+  InitializeWaveforms();
+
   // Loop over all trigs in tree
   tpc_trigno = 0;
   UInt_t i = 0; // TPC start variable
@@ -354,9 +360,6 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
   gps_d  = fGPS_d;
   gps_s  = fGPS_s;
   gps_ns = fGPS_ns;
-
-  if( fAnalysisTree->GetEntries() == 0 )
-    InitializeWaveforms();
 
   pds_ntrig = end - start + 1;
   Int_t subtrig = 0;
@@ -626,7 +629,8 @@ std::vector<Int_t> PDSAnalysis::CheckHits(TH1F* h, Int_t pmt, std::vector<Int_t>
 
   // Check if oversize
   if( (Int_t)new_vector.size() > kMaxNHits )
-    std::cout << "WARNING! Hits greater than kMaxNHits!" << std::endl;
+    std::cout << "WARNING! Hits(" << new_vector.size() << ") greater than kMaxNHits(" 
+	      << kMaxNHits << ")!" << std::endl;
 
   if( new_vector[0] == -9999 )
     new_vector.erase(new_vector.begin());
@@ -1245,24 +1249,21 @@ Double_t PDSAnalysis::QuadraticXInterpolate(Double_t y[3], Double_t x[3], Double
 
 void PDSAnalysis::ConvertUnits()
 {
-  Double_t mean_conversion = 0;
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-    mean_conversion += kADCtick_to_pe[pmt] / kADC_to_pe[pmt];
     for( Int_t hit = 0; hit < pmt_hits[pmt] && hit < PDSAnalysis::kMaxNHits; hit++ ) {
       pmt_time[pmt][hit] *= kTick_to_ns;
       pmt_peak[pmt][hit] *= kADC_to_pe[pmt];
       pmt_FWHM[pmt][hit] *= kTick_to_ns;
-      pmt_integral[pmt][hit] *= kADCtick_to_pe[pmt];
+      pmt_integral[pmt][hit] *= kADC_to_pe[pmt] * kTick_to_ns;
     }
     for( UInt_t pmt2 = 0; pmt2 < kNPMTs; pmt2++ )
       pmt_dtime[pmt][pmt2] *= kTick_to_ns;
   }
-  mean_conversion = mean_conversion / (kNPMTs - 1);
   for( Int_t hit = 0; hit < pds_hits; hit++ ) {
     pds_time[hit] *= kTick_to_ns;
-    pds_peak[hit] *= -1;
+    pds_peak[hit] *= -1.;
     pds_FWHM[hit] *= kTick_to_ns;
-    pds_integral[hit] *= -mean_conversion;
+    pds_integral[hit] *= -kTick_to_ns;
   }
   rf_time *= kTick_to_ns;
 }
@@ -1302,27 +1303,51 @@ void PDSAnalysis::PrintEvent()
 	    << "PDS evno#" << pds_evno << "\n"
 	    << "Multiplicity: " << pds_nevent << "\n"
 	    << "GPS:" << Form("%.14g", gps_s + gps_ns*1e-9) << "\n"
-	    << "RF:" << Form("%.6g",rf_time * kTick_to_ns) << "\t"
+	    << "RF:" << Form("%.6g",rf_time) << "\t"
 	    << "BEAM?:" << inBeamWindow << "\n"
-	    << "PMT:  \tTIME: \tPEAK: \tFWHM: \tINT:  \tBL:   \tRATIO:\tHITS: \tFLAG?:" << "\n"
-	    << "PDS" << "\t" << Form("%.6g",pds_time[0] * kTick_to_ns) << "\t"
-	    << Form("%.4g",pds_peak[0] * -1) << "\t"
-	    << Form("%.4g",pds_FWHM[0] * kTick_to_ns) << "\t"
-	    << Form("%.4g",pds_integral[0] * -1.) << "\t"
-	    << Form("%.4g",pds_offset) << "\t"
-	    << Form("%.4g",pds_ratio) << "\t"
-	    << Form("%5d",pds_hits) << "\t"
-	    << pds_flag << "\n";
+	    << "PMT:  \tTIME: \tPEAK: \tFWHM: \tINT:  \tBL:   \tRATIO:\tHITS: \tFLAG?:" << "\n";
+  if( pds_flag )
+    std::cout << "PDS" << "\t" 
+	      << Form("%#5.2f",pds_time[0]) << "\t"
+	      << Form("%#5.2f",pds_peak[0]) << "\t"
+	      << Form("%#5.2f",pds_FWHM[0]) << "\t"
+	      << Form("%#5.2f",pds_integral[0]) << "\t"
+	      << Form("%#5.2f",pds_offset) << "\t"
+	      << Form("%#5.2f",pds_ratio) << "\t"
+	      << Form("%#5.2f",pds_hits) << "\t"
+	      << pds_flag << "\n";
+  else
+    std::cout << "PDS" << "\t"
+	      << "-----" << "\t"
+	      << "-----" << "\t"
+	      << "-----" << "\t"
+	      << "-----" << "\t"
+              << Form("%#5.2f",pds_offset) << "\t"
+	      << "-----" << "\t"
+              << Form("%#5.2f",pds_hits) << "\t"
+              << pds_flag << "\n";
+
   for( UInt_t pmt = 0; pmt < kNPMTs; pmt++ )
-    std::cout << pmt + 1 << "\t"
-	      << Form("%.4g",pmt_time[pmt][0] * kTick_to_ns) << "\t"
-	      << Form("%.4g",pmt_peak[pmt][0] * kADC_to_pe[pmt]) << "\t"
-	      << Form("%.4g",pmt_FWHM[pmt][0] * kTick_to_ns) << "\t"
-	      << Form("%.4g",pmt_integral[pmt][0] * kADCtick_to_pe[pmt]) << "\t"
-	      << Form("%.4g",pmt_offset[pmt]) << "\t"
-	      << Form("%.4g",pmt_ratio[pmt]) << "\t"
-	      << Form("%5d",pmt_hits[pmt]) << "\t"
-	      << pmt_flag[pmt] << "\n";
+    if( pmt_flag[pmt] )
+      std::cout << pmt + 1 << "\t"
+		<< Form("%#5.2f",pmt_time[pmt][0]) << "\t"
+		<< Form("%#5.2f",pmt_peak[pmt][0]) << "\t"
+		<< Form("%#5.2f",pmt_FWHM[pmt][0]) << "\t"
+		<< Form("%#5.2f",pmt_integral[pmt][0]) << "\t"
+		<< Form("%#5.2f",pmt_offset[pmt]) << "\t"
+		<< Form("%#5.2f",pmt_ratio[pmt]) << "\t"
+		<< Form("%#5.2f",pmt_hits[pmt]) << "\t"
+		<< pmt_flag[pmt] << "\n";
+    else
+      std::cout << pmt + 1 << "\t"
+                << "-----" << "\t"
+                << "-----" << "\t"
+                << "-----" << "\t"
+                << "-----" << "\t"
+		<< Form("%#5.2f",pmt_offset[pmt]) << "\t"
+		<< "-----" << "\t"
+		<< Form("%#5.2f",pmt_hits[pmt]) << "\t"
+                << pmt_flag[pmt] << "\n";
   std::cout << std::endl;
 }
 

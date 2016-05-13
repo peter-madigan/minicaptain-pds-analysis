@@ -1,0 +1,65 @@
+{
+//========= Macro generated from object: htT/Triplet lifetime
+//========= by ROOT version5.34/34
+   Double_t xAxis2[40] = {4.90726e+06, 4.92943e+06, 4.92952e+06, 4.94077e+06, 4.94884e+06, 4.96484e+06, 4.96496e+06, 4.99148e+06, 4.9916e+06, 5.01039e+06, 5.01047e+06, 5.02459e+06, 5.02471e+06, 5.03891e+06, 5.03901e+06, 5.04951e+06, 5.04961e+06, 5.06832e+06, 5.06853e+06, 5.07348e+06, 5.08324e+06, 5.09753e+06, 5.09761e+06, 5.10857e+06, 5.10869e+06, 5.12366e+06, 5.12475e+06, 5.32899e+06, 5.41898e+06, 5.54027e+06, 5.54056e+06, 5.87938e+06, 5.88008e+06, 6.03348e+06, 6.03383e+06, 6.0372e+06, 6.19996e+06, 6.22752e+06, 6.22811e+06, 6.24904e+06}; 
+   
+   TH1F *htT = new TH1F("htT","Triplet lifetime",39, xAxis2);
+   htT->SetBinContent(1,832.516);
+   htT->SetBinContent(3,845.502);
+   htT->SetBinContent(5,838.058);
+   htT->SetBinContent(7,825.19);
+   htT->SetBinContent(9,841.701);
+   htT->SetBinContent(11,828.058);
+   htT->SetBinContent(13,852.392);
+   htT->SetBinContent(15,819.751);
+   htT->SetBinContent(17,821.06);
+   htT->SetBinContent(19,830.719);
+   htT->SetBinContent(21,830.88);
+   htT->SetBinContent(23,803.49);
+   htT->SetBinContent(25,849.428);
+   htT->SetBinContent(27,800.611);
+   htT->SetBinContent(29,1049.88);
+   htT->SetBinContent(31,1046.56);
+   htT->SetBinContent(33,1022.53);
+   htT->SetBinContent(35,1051.65);
+   htT->SetBinContent(37,1089);
+   htT->SetBinContent(39,1066.76);
+   htT->SetBinError(1,7.57685);
+   htT->SetBinError(3,9.43562);
+   htT->SetBinError(5,8.01726);
+   htT->SetBinError(7,6.96);
+   htT->SetBinError(9,7.26382);
+   htT->SetBinError(11,8.4364);
+   htT->SetBinError(13,8.73866);
+   htT->SetBinError(15,6.97586);
+   htT->SetBinError(17,5.37503);
+   htT->SetBinError(19,27.83);
+   htT->SetBinError(21,10.5566);
+   htT->SetBinError(23,9.46889);
+   htT->SetBinError(25,15.2645);
+   htT->SetBinError(27,22.4238);
+   htT->SetBinError(29,1.86248);
+   htT->SetBinError(31,0.909308);
+   htT->SetBinError(33,3.76813);
+   htT->SetBinError(35,11.495);
+   htT->SetBinError(37,16.8178);
+   htT->SetBinError(39,6.22711);
+   htT->SetEntries(20);
+   htT->SetMarkerStyle(20);
+   htT->GetXaxis()->SetTimeDisplay(1);
+   htT->GetXaxis()->SetTimeFormat("%m/%d%p%F1995-01-01 00:00:00s0");
+   htT->GetXaxis()->SetLabelFont(42);
+   htT->GetXaxis()->SetLabelSize(0.035);
+   htT->GetXaxis()->SetTitleSize(0.035);
+   htT->GetXaxis()->SetTitleFont(42);
+   htT->GetYaxis()->SetTitle("#tau_{T} (ns)");
+   htT->GetYaxis()->SetLabelFont(42);
+   htT->GetYaxis()->SetLabelSize(0.035);
+   htT->GetYaxis()->SetTitleSize(0.035);
+   htT->GetYaxis()->SetTitleFont(42);
+   htT->GetZaxis()->SetLabelFont(42);
+   htT->GetZaxis()->SetLabelSize(0.035);
+   htT->GetZaxis()->SetTitleSize(0.035);
+   htT->GetZaxis()->SetTitleFont(42);
+   htT->Draw("");
+}

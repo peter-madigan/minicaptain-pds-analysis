@@ -9,7 +9,8 @@ void pmt_rate(){
   Bool_t   pmt_flag[kNPMTs];
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
-  ch->Add("calib/pdsTree9993/pdsEvTree*");
+  ch->Add("calib/pdsTree90000/pdsEvTree*");
+  //ch->Add("calib/pdsTree9993/pdsEvTree*");
   //ch->Add("calib/pdsTree9988/pdsEvTree*");
   //ch->Add("calib/pdsTree9987/pdsEvTree*");
   //ch->Add("calib/pdsTree9986/pdsEvTree*");

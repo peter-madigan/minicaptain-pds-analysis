@@ -2,8 +2,7 @@
 source /project/projectdirs/captain/releases/CAPTAIN/captain.profile
 
 # single pe calibration
-
-runs=( 9989 9996 9995 9994 9992 9991 9990 )
+runs=( 90001 90003 ) #( 9989 9996 9995 9994 9992 9991 9990 )
 
 cd /global/homes/p/pmadigan/work/pds_analysis/pds_analysisCode
 
