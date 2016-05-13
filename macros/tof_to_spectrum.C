@@ -112,7 +112,7 @@ void tof_to_spectrum() {
       // Loop over pmts
       Double_t integral_sum = 0;
       for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	if( pmt_flag[pmt] && (pmt == 4 || pmt == 8 || pmt == 9 || pmt == 14) ) {
+	if( pmt_flag[pmt] && (true || pmt == 4 || pmt == 8 || pmt == 9 || pmt == 14) ) {
 	  for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ ) {
 	    if( pmt_time[pmt][hit] >= pds_time[0]-10 ) { 
 	      integral_sum += pmt_peak[pmt][hit];

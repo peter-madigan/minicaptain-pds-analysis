@@ -113,7 +113,7 @@ void tof_charge() {
       Double_t TOF_hit = 0;
       
       for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	if( pmt_flag[pmt] && (pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) {
+	if( pmt_flag[pmt] && (true || pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) {
 	  triplet = 0;
 	  
 	  for( Int_t j = 0; j < pmt_hits[pmt]; j++) {

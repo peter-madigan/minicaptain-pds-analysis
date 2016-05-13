@@ -10,9 +10,9 @@ void pmt_rate(){
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
   ch->Add("calib/pdsTree9993/pdsEvTree*");
-  ch->Add("calib/pdsTree9988/pdsEvTree*");
-  ch->Add("calib/pdsTree9987/pdsEvTree*");
-  ch->Add("calib/pdsTree9986/pdsEvTree*");
+  //ch->Add("calib/pdsTree9988/pdsEvTree*");
+  //ch->Add("calib/pdsTree9987/pdsEvTree*");
+  //ch->Add("calib/pdsTree9986/pdsEvTree*");
 
   ch->SetBranchStatus("*", kFALSE);
 
