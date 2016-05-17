@@ -1,6 +1,6 @@
 {
 //=========Macro generated from canvas: c2/
-//=========  (Fri May 13 10:02:09 2016) by ROOT version5.34/34
+//=========  (Mon May 16 12:45:17 2016) by ROOT version5.34/34
    TCanvas *c2 = new TCanvas("c2", "",10,32,700,500);
    gStyle->SetOptStat(0);
    c2->Range(0,0,1,1);
@@ -18,8 +18,8 @@
    gre->SetMarkerStyle(20);
    gre->SetPoint(0,1,0);
    gre->SetPointError(0,0,0);
-   gre->SetPoint(1,2,2875.646);
-   gre->SetPointError(1,0,437.8465);
+   gre->SetPoint(1,2,2886.066);
+   gre->SetPointError(1,0,437.9084);
    gre->SetPoint(2,3,2094.221);
    gre->SetPointError(2,0,344.6945);
    gre->SetPoint(3,4,2250.506);

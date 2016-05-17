@@ -1,7 +1,7 @@
 {
 //=========Macro generated from canvas: c_peak/PMT calib (peak)
-//=========  (Fri May 13 11:05:48 2016) by ROOT version5.34/34
-   TCanvas *c_peak = new TCanvas("c_peak", "PMT calib (peak)",0,22,1200,800);
+//=========  (Mon May 16 12:46:01 2016) by ROOT version5.34/34
+   TCanvas *c_peak = new TCanvas("c_peak", "PMT calib (peak)",94,22,1200,800);
    gStyle->SetOptFit(1);
    gStyle->SetOptStat(0);
    c_peak->Range(0,0,1,1);
