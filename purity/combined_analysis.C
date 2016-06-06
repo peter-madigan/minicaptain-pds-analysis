@@ -15,6 +15,8 @@ TGraphAsymmErrors* CleanUpPlot(TGraphAsymmErrors* g0);
 
 using namespace TMath;
 
+static const Double_t window = 1*3600; // 1 hour
+
 static const Double_t keO2  = 1.0/0.32; // 1 / usec ppm
 static const Double_t keN2  = 1.0/320.0;// 1 / usec ppm
 static const Double_t keH2O = 1.0/13.0; // 1 / usec ppm
@@ -89,7 +91,6 @@ void combined_analysis(){
     t_H2O[i_H2O] = (t_H2O[i_H2O] - 40908) * 24 * 3600; // sec since jan 1
   
   // Loop over points
-  Double_t window = 14*24*3600;
   for( Double_t current_time = t_scint[0]; current_time < t_scint[n_scint-1] + window; current_time+= window ) {
     // Store time window
     Int_t i_curr = t_arr.size();

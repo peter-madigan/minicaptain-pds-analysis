@@ -10,6 +10,7 @@
 #include <TFitResult.h>
 #include <TMath.h>
 #include <TCanvas.h>
+#include <TFile.h>
 
 using namespace TMath;
 using namespace std;
@@ -53,10 +54,10 @@ void nitrogen() {
   gStyle->SetOptStat(0);
   
   // Set up chains for runs
-  static const Int_t start_run = 6166; //6166
-  static const Int_t end_run   = 6407;
-  static const Int_t nch = (end_run - start_run)/10 + 1;
-  static const Int_t nrun = 10;
+  static const Int_t start_run = 6600; //6166
+  static const Int_t end_run   = 6629;
+  static const Int_t nch = (end_run - start_run)/1 + 1;
+  static const Int_t nrun = 1;
   TObjArray* ch = new TObjArray();
   for( Int_t ich = 0; ich < nch; ich++ )
     ch->Add(new TChain("pdsEvTree","pdsEvTree"));
@@ -119,7 +120,10 @@ void nitrogen() {
 
   // Set branches
   for( int ich = 0; ich < nch; ich++ ) {
-    if( ((TChain*)ch->At(ich))->GetEntries() == 0 ) continue;
+    std::cout << "Run start: " << start_run + ich * nrun << "\t" 
+	      << "Run end:   " << start_run + (ich + 1) * nrun - 1 << std::endl;
+    if( ((TChain*)ch->At(ich))->GetEntries() == 0 ) { 
+      std::cout << "Empty." << std::endl; continue;}
     ((TChain*)ch->At(ich))->SetBranchStatus("*", kFALSE);
 
     ((TChain*)ch->At(ich))->SetBranchAddress("gps_yr",&gps_yr);
@@ -162,15 +166,14 @@ void nitrogen() {
     ((TChain*)ch->At(ich))->SetBranchStatus("rf_time",kTRUE);
   
     // Loop over events
+    Double_t sumTime = 0;
+    Double_t sqsumTime = 0;
     Double_t meanTime = 0.;
-    Double_t minTime = 0;
-    Double_t maxTime = 0;
+    Double_t stddevTime = 0;
     for( Int_t i = 0; ((TChain*)ch->At(ich))->GetEntry(i); i++ ) {
-      meanTime += gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
-      if( i == 0 ) 
-	minTime = gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
-      if( i == ((TChain*)ch->At(ich))->GetEntries()-1 )
-	maxTime = gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
+      sumTime += gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24;
+      sqsumTime += Power(gps_ns * 1e-9 + gps_s + gps_d * 3600 * 24,2);
+
       // Status update 
       if( ((TChain*)ch->At(ich))->GetEntries()/10 > 0 && i%(((TChain*)ch->At(ich))->GetEntries()/10) == 0 )
 	cout << "Chain #" << ich << ": " 
@@ -204,28 +207,39 @@ void nitrogen() {
       }
     }
     
-    meanTime = meanTime/((TChain*)ch->At(ich))->GetEntries();
-    timeBins.push_back(minTime);
-    timeBins.push_back(maxTime);
-    time.push_back(meanTime);
-    cout << "Average run time: " << time[time.size()-1] << endl;
-    
-    fit.push_back( ((TH1F*)hist_lifetime->At(ich))->Fit("fit","srq") );
-    cout << "Lifetime fit: " << (Int_t)fit[fit.size()-1] << endl;
-    cout << "tT: " << GettTAndError(fit[fit.size()-1])[0] << "ns" << endl;
-    cout << "N2: " << GetN2AndError(fit[fit.size()-1])[0] << "ppm" << endl;
-    cout << "O2: " << GetO2AndError(fit[fit.size()-1])[0] << "ppm" << endl;
+    fit_func->SetParameters(2,1000,0);
+    fit_func->SetParLimits(1,0.1,1e5);
 
-    fit_ratio.push_back( ((TH1F*)hist_ratio->At(ich))->Fit("gaus","sq") );
-    cout << "Ratio fit: " << (Int_t)fit_ratio[fit_ratio.size()-1] << endl;
-    
-    /*hist_ratio->At(ich)->Draw("e");    
-    c1->SetLogy();
-    c1->Update();
+    TFitResultPtr tmpFitPtr = ((TH1F*)hist_lifetime->At(ich))->Fit("fit","srq");
 
-    hist_lifetime->At(ich)->Draw("e");
-    c1->SetLogy();
-    c1->Update();*/
+    if( tmpFitPtr == 0 && GetN2AndError(tmpFitPtr)[0] > 0 ) {
+      meanTime = sumTime/((TChain*)ch->At(ich))->GetEntries();
+      stddevTime  = sqsumTime/((TChain*)ch->At(ich))->GetEntries();
+      timeBins.push_back(meanTime - 0*Sqrt(stddevTime - Power(meanTime,2)));
+      timeBins.push_back(meanTime + 0*Sqrt(stddevTime - Power(meanTime,2)));
+      time.push_back(meanTime);
+      cout << "Average run time: " << time[time.size()-1] << endl;
+      
+      fit.push_back( ((TH1F*)hist_lifetime->At(ich))->Fit("fit","srq") );
+      cout << "Lifetime fit: " << (Int_t)fit[fit.size()-1] << endl;
+      cout << "tT: " << GettTAndError(fit[fit.size()-1])[0] << "ns" << endl;
+      cout << "N2: " << GetN2AndError(fit[fit.size()-1])[0] << "ppm" << endl;
+      cout << "O2: " << GetO2AndError(fit[fit.size()-1])[0] << "ppm" << endl;
+
+      fit_ratio.push_back( ((TH1F*)hist_ratio->At(ich))->Fit("gaus","sq") );
+      cout << "Ratio fit: " << (Int_t)fit_ratio[fit_ratio.size()-1] << endl;
+    
+      /*hist_ratio->At(ich)->Draw("e");    
+	c1->SetLogy();
+	c1->Update();
+      */
+      if( GettTAndError(fit[fit.size()-1])[0] > 2000 ) {
+	hist_lifetime->At(ich)->Draw("e");
+	c1->SetLogy();
+	c1->Update();
+      }
+    } else
+      std::cout << "Bad fit." << std::endl;
   }
   cout << "Creating plots..." << endl;
 
@@ -290,6 +304,9 @@ void nitrogen() {
   c1->SetLogy(0);
   c1->SetGridx(); c1->SetGridy();
   hN2->SaveAs("plots/nitrogen-eqN2.C");
+  TFile* fo = TFile::Open("purity/scint_lifetime.root","RECREATE");
+  hN2->Write();
+  fo->Close();
 
   c1->DrawClone();
   htT->SetTitle("");
@@ -337,7 +354,7 @@ void nitrogen() {
 
 vector<Double_t> GetN2AndError(TFitResultPtr& f) {
   vector<Double_t> N2(2,0.0);
-  if( f->IsEmpty() ) return N2;
+  if( f.Get() == NULL || f->IsEmpty() ) return N2;
 
   Double_t tau0 = 1453;
   Double_t tau0_err = 10;
@@ -356,7 +373,7 @@ vector<Double_t> GetN2AndError(TFitResultPtr& f) {
 
 vector<Double_t> GetO2AndError(TFitResultPtr& f) {
   vector<Double_t> O2(2,0.0);
-  if( f->IsEmpty() ) return O2;
+  if( f.Get() == NULL || f->IsEmpty() ) return O2;
 
   Double_t tau0 = 1453;
   Double_t tau0_err = 10;
@@ -382,7 +399,7 @@ vector<Double_t> GetO2AndError(TFitResultPtr& f) {
 
 vector<Double_t> GettTAndError(TFitResultPtr& f) {
   vector<Double_t> tT(2,0.0);
-  if( f->IsEmpty() ) return tT;
+  if( f.Get() == NULL || f->IsEmpty() ) return tT;
 
   Double_t tau1 = f->Parameter(1);
   Double_t tau1_err = f->ParError(1);
@@ -395,7 +412,7 @@ vector<Double_t> GettTAndError(TFitResultPtr& f) {
 
 vector<Double_t> GetRatioAndError(TFitResultPtr& f) {
   vector<Double_t> r(2,0.0);
-  if( f->IsEmpty() ) return r;
+  if( f.Get() == NULL || f->IsEmpty() ) return r;
 
   Double_t ratio = f->Parameter(1);
   Double_t ratio_err = f->ParError(1);

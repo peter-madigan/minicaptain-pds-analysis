@@ -84,7 +84,7 @@ void tof_charge() {
   TH2F* h_shape = new TH2F("h_shape",";singlet integral (pe);triplet integral (pe)",nbinsy,ymin,ymax,nbinsy,ymin,ymax);
   TH2F* h_ratio = new TH2F("h_ratio",";tof (ns);log( triplet / singlet )",nbinsx,xmin,xmax,nbinsy,-8,8);
   
-  TH2F* h_integral_calib = new TH2F("h_integral_calib",";height (pe);integral (pe * ns)",nbinsy,ymin,ymax,nbinsy,ymin,ymax*20);
+  TH2F* h_integral_calib = new TH2F("h_integral_calib",";height (pe);integral (pe * ns)",100*nbinsy,ymin,ymax,100*nbinsy,ymin,ymax*20);
 
   // For removing gammas from spectrum
   TF1* fGaus = new TF1("fGaus","gaus",xmin,xmax);
@@ -166,5 +166,6 @@ void tof_charge() {
   h_ratio->SaveAs("plots/tof-ratio.C");
 
   // Draw plot(s)
-  h_tof_hit->Draw();
+  h_integral_calib->ProfileX()->Fit("pol1");
+  c1->SaveAs("plots/tof-integral_calib.C");
 }  

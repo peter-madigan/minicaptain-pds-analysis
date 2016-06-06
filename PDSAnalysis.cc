@@ -368,7 +368,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
     std::vector<Double_t> rf_pulse = FindRFTime();
     
     if( rf_pulse.size() == 0 ) {
-      // Cosmic trigger
+      // * Cosmic trigger *
       //
       // Do single analysis
       tpc_subtrigno = subtrig;
@@ -396,7 +396,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
       if( pds_flag || fCalibration || fStoreAll ) fAnalysisTree->Fill();
       //
     } else {
-      // Beam trigger
+      // * Beam trigger *
       //
       // Check for events
       pds_nevent = QuickCheckMult(rf_pulse);
@@ -551,10 +551,15 @@ Int_t PDSAnalysis::QuickCheckMult(std::vector<Double_t> &rf_pulse)
   TH1F* hPMT = GetPMTSum();
   pds_offset = RemoveADCOffset(hPMT);
   
-  for( Int_t rf_i = 0; rf_i < rf_pulse.size(); rf_i++ )
-    if( hPMT->Integral() < -kSumThreshold ) {
-      nevent++;
-    }
+  for( Int_t rf_i = 0; rf_i < rf_pulse.size(); rf_i++ ) {
+    Int_t start = Max(rf_pulse[rf_i] - kBeamSearchWindow_pre, 1.);
+    Int_t finish = Min(rf_pulse[rf_i] + kBeamSearchWindow_post, fNSamples+1.);
+    for( Int_t sample = start; sample < finish; sample++ )
+      if( hPMT->GetBinContent(sample) < -kSumThreshold ) {
+	nevent++;
+	break;
+      }
+  }
   
   return nevent;
 }

@@ -18,7 +18,9 @@ void pmt_calib() {
   //TCanvas* c_noise = new TCanvas("c_noise","PMT calib (integral)");
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
-  ch->Add("calib/pdsTree90003/pdsEvTree*");
+  ch->Add("calib/pdsTree90006/pdsEvTree*");
+  ch->Add("calib/pdsTree90004/pdsEvTree*");
+  //ch->Add("calib/pdsTree90003/pdsEvTree*");
   //ch->Add("calib/pdsTree9989/pdsEvTree*");
   //ch->Add("calib/pdsTree9990/pdsEvTree*");
   //ch->Add("calib/pdsTree9991/pdsEvTree*");
