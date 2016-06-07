@@ -384,7 +384,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
       }
       
       // Draw trig
-      if( fViewerMode && false) {
+      if( fViewerMode && pds_flag ) {
 	PrintEvent();
 	DrawEvent();
       }
@@ -418,9 +418,9 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
 	  }
 	  
 	  // Draw trig                                             
-	  if( fViewerMode && 
-	      (pds_time[0] - rf_time)*4+671.25+23.18/3e8*1e9 > 700 &&
-	      (pds_time[0] - rf_time)*4+671.25+23.18/3e8*1e9 < 800) {
+	  if( fViewerMode && pds_flag ) {
+	      //(pds_time[0] - rf_time)*4+671.25+23.18/3e8*1e9 > 700 &&
+	      //(pds_time[0] - rf_time)*4+671.25+23.18/3e8*1e9 < 800) {
 	    PrintEvent();
 	    DrawEvent();
 	  }
@@ -434,7 +434,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
     } 
     
     // Update
-    if( pds_trigno % (fPMTTree->GetEntries()/10)==0 )
+    if( pds_trigno % (fPMTTree->GetEntries()/10)==0 || fViewerMode )
       PrintEvent();
     subtrig++;
   }

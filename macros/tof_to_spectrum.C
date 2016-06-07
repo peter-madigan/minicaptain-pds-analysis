@@ -9,7 +9,7 @@ Double_t length_err = 0.01; // m
 Double_t c    = 3e8; // m/s
 Double_t mass = 939.565379; // MeV/c2 -- PDG 2012
 Double_t mass_err = 0.000021; // MeV/c2 -- PDG 2012
-Double_t background_rate = 800*14; // Hz
+Double_t background_rate = 680 * 14; // Hz (measured by random trigger using 3pe sum threshold)
 Double_t gamma_width = 3.9e-9; // s
 
 using namespace TMath;
@@ -17,7 +17,7 @@ using namespace std;
 
 static const Int_t kNPMTs = 15;
 static const Int_t kMaxNHits = 200;
-static const Double_t kIntToPE = 1./12.9; 
+static const Double_t kIntToPE = 1./13.5; 
 
 UInt_t   runno;
 Int_t    pds_nevent;
@@ -40,7 +40,6 @@ Double_t rf_time;
 void tof_to_spectrum() {
   TCanvas* c1 = new TCanvas();
   gROOT -> ProcessLine(".X chainFiles.C");
-  //gROOT -> ProcessLine(".X plots/tof-prompt_filt.C");
   
   pdsEvTree->SetBranchStatus("*", kFALSE);
   
@@ -162,10 +161,6 @@ void tof_to_spectrum() {
       Double_t time = (pds_time[0] - rf_time) * 1e-9 - calib_time + tof_length/c;;
       Double_t E = time_to_E(time);
 
-      // Fill background
-      n++;
-      Background(h_background,background_rate);
-
       // Loop over pmts
       Double_t prompt_sum = 0;
       Double_t prompt_err = 0;
@@ -188,29 +183,32 @@ void tof_to_spectrum() {
       sum_err    = Sqrt(sum_err);
       prompt_err = Sqrt(prompt_err);
 
-      // Fill histograms
-      h_spectrum->Fill(E);
-      h_total->Fill(E,sum);
-      h_prompt->Fill(E,prompt_sum);
-      if( prompt_sum > 0 )
+      if( prompt_sum > 0 && sum-prompt_sum > 0 ) {
+	// Fill background
+	n++;
+	Background(h_background,background_rate);
+	
+	// Fill histograms
+	h_spectrum->Fill(E);
+	h_total->Fill(E,sum);
+	h_prompt->Fill(E,prompt_sum);
 	h_ratio->Fill(E,(sum-prompt_sum)/prompt_sum);
-
-      // Fill shifted histograms
-      time -= gamma_width;
-      E = time_to_E(time);
-      h_spectrum_sys[0]->Fill(E);
-      h_prompt_sys[0]->Fill(E,prompt_sum);
-      h_total_sys[0]->Fill(E,sum);
-      if( prompt_sum > 0 )
+	
+	// Fill shifted histograms
+	time -= gamma_width;
+	E = time_to_E(time);
+	h_spectrum_sys[0]->Fill(E);
+	h_prompt_sys[0]->Fill(E,prompt_sum);
+	h_total_sys[0]->Fill(E,sum);
 	h_ratio_sys[0]->Fill(E,(sum-prompt_sum)/prompt_sum);
-     
-      time += 2 * gamma_width;
-      E = time_to_E(time);
-      h_spectrum_sys[1]->Fill(E);
-      h_prompt_sys[1]->Fill(E,prompt_sum);
-      h_total_sys[1]->Fill(E,sum);
-      if( prompt_sum > 0 )
+	
+	time += 2 * gamma_width;
+	E = time_to_E(time);
+	h_spectrum_sys[1]->Fill(E);
+	h_prompt_sys[1]->Fill(E,prompt_sum);
+	h_total_sys[1]->Fill(E,sum);
 	h_ratio_sys[1]->Fill(E,(sum-prompt_sum)/prompt_sum);
+      }
     }
   }  
   

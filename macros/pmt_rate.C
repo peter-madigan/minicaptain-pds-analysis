@@ -4,6 +4,7 @@ void pmt_rate(){
   static const Int_t kNPMTs = 15;
   static const Int_t kMaxNHits = 200;
 
+  Bool_t   pds_flag;
   Int_t    pmt_hits[kNPMTs];
   Double_t pmt_peak[kNPMTs][kMaxNHits];
   Bool_t   pmt_flag[kNPMTs];
@@ -21,10 +22,12 @@ void pmt_rate(){
 
   ch->SetBranchStatus("*", kFALSE);
 
+  ch->SetBranchAddress("pds_flag",&pds_flag);
   ch->SetBranchAddress("pmt_hits",pmt_hits);
   ch->SetBranchAddress("pmt_peak",pmt_peak);
   ch->SetBranchAddress("pmt_flag",pmt_flag);
 
+  ch->SetBranchStatus("pds_flag",kTRUE);
   ch->SetBranchStatus("pmt_hits",kTRUE);
   ch->SetBranchStatus("pmt_peak",kTRUE);
   ch->SetBranchStatus("pmt_flag",kTRUE);
@@ -37,6 +40,7 @@ void pmt_rate(){
   Double_t n = (Double_t)ch->GetEntries();
   ch->GetEntry(0);
   for( Int_t i = 0; ch->GetEntry(i); i++ ) 
+    if( pds_flag )
     for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) 
       if( pmt_flag[pmt] ) {
 	Double_t rate_hit = pmt_hits[pmt] / n / 4200e-9;
