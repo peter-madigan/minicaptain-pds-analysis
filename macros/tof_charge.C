@@ -88,9 +88,9 @@ void tof_charge() {
 
   // For removing gammas from spectrum
   TF1* fGaus = new TF1("fGaus","gaus",xmin,xmax);
-  double height = 67.623; 
-  double mean   = 77.267;
-  double sigma  = 4.9;
+  double height = 16.28; 
+  double mean   = 76.9;
+  double sigma  = 3.9;
   fGaus -> SetParameters(height, mean, sigma);
   TH1F* h_gamma_tof = new TH1F("h_gamma_tof","",nbinsx,xmin,xmax);
   for( int i = 1; i < h_gamma_tof->GetNbinsX()+1; i++ )
@@ -106,6 +106,9 @@ void tof_charge() {
     if( inBeamWindow && pds_flag && pds_nevent == 1 ) {
       // Loop over PDS
       Double_t TOF = pds_time[0] - rf_time - kDelay;
+      //for( Int_t pmt = 0; pmt < kNPMTs; pmt++ )
+      //if( pmt_time[pmt][0] - rf_time - kDelay < TOF && pmt_flag[pmt] )
+      //TOF = pmt_time[pmt][0] - rf_time - kDelay;
       Double_t event_singlet = 0;
       Double_t event_triplet = 0;
       Double_t triplet = 0;
@@ -113,7 +116,7 @@ void tof_charge() {
       Double_t TOF_hit = 0;
       
       for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) {
-	if( pmt_flag[pmt] && (true || pmt == 5 || pmt == 9 || pmt == 10 || pmt == 15) ) {
+	if( pmt_flag[pmt] ) {
 	  triplet = 0;
 	  
 	  for( Int_t j = 0; j < pmt_hits[pmt]; j++) {

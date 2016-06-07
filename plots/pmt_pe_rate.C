@@ -1,6 +1,6 @@
 {
 //=========Macro generated from canvas: c1/
-//=========  (Thu May 19 10:29:30 2016) by ROOT version5.34/34
+//=========  (Mon Jun  6 14:06:10 2016) by ROOT version5.34/34
    TCanvas *c1 = new TCanvas("c1", "",10,32,700,500);
    gStyle->SetOptStat(0);
    c1->Range(0,0,1,1);
@@ -18,38 +18,38 @@
    gre->SetMarkerStyle(20);
    gre->SetPoint(0,1,0);
    gre->SetPointError(0,0,0);
-   gre->SetPoint(1,2,17616.66);
-   gre->SetPointError(1,0,1993.591);
-   gre->SetPoint(2,3,10155.3);
-   gre->SetPointError(2,0,887.1923);
-   gre->SetPoint(3,4,9742.186);
-   gre->SetPointError(3,0,905.1219);
-   gre->SetPoint(4,5,7622.42);
-   gre->SetPointError(4,0,817.8249);
-   gre->SetPoint(5,6,37801.01);
-   gre->SetPointError(5,0,2965.8);
-   gre->SetPoint(6,7,12051.47);
-   gre->SetPointError(6,0,1005.279);
-   gre->SetPoint(7,8,6698.011);
-   gre->SetPointError(7,0,959.221);
-   gre->SetPoint(8,9,10278.14);
-   gre->SetPointError(8,0,1617.08);
-   gre->SetPoint(9,10,7287.917);
-   gre->SetPointError(9,0,776.8871);
-   gre->SetPoint(10,11,17963.05);
-   gre->SetPointError(10,0,1663.99);
-   gre->SetPoint(11,12,7668.114);
-   gre->SetPointError(11,0,722.7452);
-   gre->SetPoint(12,13,13229.65);
-   gre->SetPointError(12,0,1437.76);
-   gre->SetPoint(13,14,19153.93);
-   gre->SetPointError(13,0,1555.543);
-   gre->SetPoint(14,15,14385.78);
-   gre->SetPointError(14,0,1419.297);
+   gre->SetPoint(1,2,981.6855);
+   gre->SetPointError(1,0,169.4691);
+   gre->SetPoint(2,3,18140.5);
+   gre->SetPointError(2,0,873.5663);
+   gre->SetPoint(3,4,2072.081);
+   gre->SetPointError(3,0,830.4791);
+   gre->SetPoint(4,5,1660.522);
+   gre->SetPointError(4,0,289.4645);
+   gre->SetPoint(5,6,4187.625);
+   gre->SetPointError(5,0,727.6248);
+   gre->SetPoint(6,7,3869.998);
+   gre->SetPointError(6,0,1988.809);
+   gre->SetPoint(7,8,2290.571);
+   gre->SetPointError(7,0,569.8564);
+   gre->SetPoint(8,9,7092.415);
+   gre->SetPointError(8,0,3255.73);
+   gre->SetPoint(9,10,1665.976);
+   gre->SetPointError(9,0,363.4173);
+   gre->SetPoint(10,11,1744.109);
+   gre->SetPointError(10,0,320.4379);
+   gre->SetPoint(11,12,102814.5);
+   gre->SetPointError(11,0,2016.167);
+   gre->SetPoint(12,13,969.2694);
+   gre->SetPointError(12,0,305.3143);
+   gre->SetPoint(13,14,59116.01);
+   gre->SetPointError(13,0,1626.446);
+   gre->SetPoint(14,15,2931.401);
+   gre->SetPointError(14,0,753.4799);
    
    TH1F *Graph_Graph1 = new TH1F("Graph_Graph1","",100,0,16.4);
    Graph_Graph1->SetMinimum(0);
-   Graph_Graph1->SetMaximum(44843.49);
+   Graph_Graph1->SetMaximum(115313.7);
    Graph_Graph1->SetDirectory(0);
    Graph_Graph1->SetStats(0);
 

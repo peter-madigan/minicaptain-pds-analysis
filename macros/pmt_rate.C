@@ -9,9 +9,12 @@ void pmt_rate(){
   Bool_t   pmt_flag[kNPMTs];
   
   TChain* ch = new TChain("pdsEvTree","pdsEvTree");
-  ch->Add("calib/pdsTree90007/pdsEvTree*");
+  //ch->Add("calib/pdsTree6353/pdsEvTree*");    
+  //ch->Add("calib/pdsTree9998/pdsTree*");
+  //ch->Add("calib/pdsTree9997/pdsTree*");
+  //ch->Add("calib/pdsTree90007/pdsEvTree*");
   //ch->Add("calib/pdsTree90005/pdsEvTree*");
-  //ch->Add("calib/pdsTree9993/pdsEvTree*");
+  ch->Add("calib/pdsTree9993/pdsEvTree*");
   //ch->Add("calib/pdsTree9988/pdsEvTree*");
   //ch->Add("calib/pdsTree9987/pdsEvTree*");
   //ch->Add("calib/pdsTree9986/pdsEvTree*");
@@ -36,13 +39,13 @@ void pmt_rate(){
   for( Int_t i = 0; ch->GetEntry(i); i++ ) 
     for( Int_t pmt = 0; pmt < kNPMTs; pmt++ ) 
       if( pmt_flag[pmt] ) {
-	Double_t rate_hit = 0.25e9 * pmt_hits[pmt] / n / (250 + 800);
+	Double_t rate_hit = pmt_hits[pmt] / n / 4200e-9;
 	h_hit->Fill(pmt+1, rate_hit);
 
 	Double_t pe = 0;
 	for( Int_t hit = 0; hit < pmt_hits[pmt]; hit++ )
 	  pe += pmt_peak[pmt][hit];
-	Double_t rate_pe = pe / n / (250 + 800) / 4e-9;
+	Double_t rate_pe = pe / n / 4200e-9;
 	h_pe->Fill(pmt+1, rate_pe);
       }
 
