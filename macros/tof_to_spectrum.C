@@ -91,7 +91,7 @@ void tof_to_spectrum() {
   }
   std::sort(energybins.begin(),energybins.end());
   vector<double> lightbins;
-  width = 5;
+  width = 10;
   for( double pe = 0; pe < 200; pe+=width )
     lightbins.push_back(pe);
 
@@ -348,17 +348,26 @@ ac. (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0])
   c1->SetLogx(0);
   
   Int_t color = 0;
+  TLegend* leg = new TLegend(0.55,0.7,0.9,0.9);
   for( int i = 0; i < h_total_bin.size(); i++ ) {
     h_total_bin[i]->Scale(1./n);
-    h_total_bin[i]->Scale(1./h_spectrum->GetBinContent(i+1));
+    h_total_bin[i]->Scale(h_spectrum->GetBinContent(i+1));
     h_total_bin[i]->Scale(1./h_spectrum->GetBinWidth(i+1));
     h_total_bin[i]->SetMarkerStyle(7);
-    if( i%(h_total_bin.size()/10) == 0 ) {
+    if( i == h_spectrum->FindBin(50)-1 ||
+	i == h_spectrum->FindBin(100)-1 ||
+	i == h_spectrum->FindBin(300)-1 ||
+	i == h_spectrum->FindBin(500)-1 ||
+	i == h_spectrum->FindBin(700)-1 ) {
+      h_total_bin[i]->GetYaxis()->SetRangeUser(1e-9,1e-6);
       h_total_bin[i]->SetLineColor(ColorTable[color]);
       h_total_bin[i]->SetMarkerColor(ColorTable[color++]);
-      h_total_bin[i]->Draw("hist same");
+      h_total_bin[i]->Draw("Lhist same");
+      h_total_bin[i]->Draw("E same");
+      leg->AddEntry(h_total_bin[i]);
     }
   }
+  leg->Draw("same");
 
   // Ratio
   c1->DrawClone();

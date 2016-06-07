@@ -1,12 +1,11 @@
 {
 //=========Macro generated from canvas: c1/c1
-//=========  (Tue Jun  7 15:37:41 2016) by ROOT version5.34/34
+//=========  (Tue Jun  7 16:24:07 2016) by ROOT version5.34/34
    TCanvas *c1 = new TCanvas("c1", "c1",10,32,700,500);
    c1->Range(0,0,1,1);
    c1->SetFillColor(0);
    c1->SetBorderMode(0);
    c1->SetBorderSize(2);
-   c1->SetLogx();
    c1->SetFrameBorderMode(0);
    Double_t xAxis9[41] = {2.32652, 4.413193, 11.42368, 12.95984, 14.83082, 17.14251, 20.04671, 23.76761, 28.64829, 35.23676, 44.4565, 57.97435, 79.08912, 115.247, 120.2604, 125.6298, 131.3917, 137.5878, 144.2657, 151.4804, 159.2949, 167.7828, 177.03, 187.1373, 198.224, 210.4328, 223.935, 238.9386, 255.699, 274.533, 295.8391, 320.1258, 348.0535, 380.4966, 418.6405, 464.1363, 519.3629, 587.8911, 675.3687, 791.361, 953.6661}; 
    
@@ -518,7 +517,7 @@
    grae->SetPoint(39,872.5136,112.4048);
    grae->SetPointError(39,81.15252,81.15252,116.2571,116.2571);
    
-   TH1F *Graph_Graph3 = new TH1F("Graph_Graph3","Graph",100,2.093868,1048.8);
+   TH1F *Graph_Graph3 = new TH1F("Graph_Graph3","Graph",100,0,1048.8);
    Graph_Graph3->SetMinimum(-27.1037);
    Graph_Graph3->SetMaximum(251.9133);
    Graph_Graph3->SetDirectory(0);
