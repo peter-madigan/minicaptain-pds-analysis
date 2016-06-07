@@ -393,7 +393,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
       ConvertUnits();
       
       // Save and ready for next trig
-      if( pds_flag || fCalibration || fStoreAll ) fAnalysisTree->Fill();
+      if( pds_flag || isBeamTrigger || fCalibration || fStoreAll ) fAnalysisTree->Fill();
       //
     } else {
       // * Beam trigger *
@@ -429,7 +429,7 @@ void PDSAnalysis::DoTrigAnalysis(Int_t start, Int_t end)
 	  ConvertUnits();
 	  
 	  // Save and ready for next trig                      
-	  if( pds_flag || fCalibration || fStoreAll ) fAnalysisTree->Fill();
+	  if( pds_flag || isBeamTrigger || fCalibration || fStoreAll ) fAnalysisTree->Fill();
 	}
     } 
     

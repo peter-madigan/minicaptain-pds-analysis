@@ -9,7 +9,8 @@ Double_t length_err = 0.01; // m
 Double_t c    = 3e8; // m/s
 Double_t mass = 939.565379; // MeV/c2 -- PDG 2012
 Double_t mass_err = 0.000021; // MeV/c2 -- PDG 2012
-Double_t background_rate = 680 * 14; // Hz (measured by random trigger using 3pe sum threshold)
+Double_t background_rate  = 680 * 14; // Hz (measured by random trigger using 3pe sum threshold)
+Double_t background_light = 930 * 14; // Hz (                      ''                          )
 Double_t gamma_width = 3.9e-9; // s
 
 using namespace TMath;
@@ -38,7 +39,7 @@ Bool_t   isBeamTrigger;
 Double_t rf_time;
 
 void tof_to_spectrum() {
-  TCanvas* c1 = new TCanvas();
+  cout << "Loading analysis trees..." << endl;
   gROOT -> ProcessLine(".X chainFiles.C");
   
   pdsEvTree->SetBranchStatus("*", kFALSE);
@@ -77,6 +78,7 @@ void tof_to_spectrum() {
   pdsEvTree->SetBranchStatus("isBeamTrigger",kTRUE);
   pdsEvTree->SetBranchStatus("rf_time",kTRUE);
 
+  cout << "Creating bins..." << endl;
   vector<double> energybins;
   double width = 3e-9;
   for( double t = 1100e-9; t > tof_length/c; t-=width ) {
@@ -89,13 +91,15 @@ void tof_to_spectrum() {
   }
   std::sort(energybins.begin(),energybins.end());
   vector<double> lightbins;
-  for( int i = 0; i < 200; i++ )
-    lightbins.push_back(i*2);
+  width = 5;
+  for( double pe = 0; pe < 200; pe+=width )
+    lightbins.push_back(pe);
 
   vector<double> ratiobins;
   for( int i = 0; i < 200; i++ )
     ratiobins.push_back(i*(10./200));
   
+  cout << "Creating plots..." << endl;
   TH1F* h_spectrum = new TH1F("h_spectrum",";Neutron E_{kin} (MeV);Frac. (MeV^{-1})",
 			      energybins.size()-1,&energybins[0]);
   h_spectrum->Sumw2();
@@ -132,7 +136,15 @@ void tof_to_spectrum() {
                                   energybins.size()-1,&energybins[0]));
   h_total_sys[0]->Sumw2();
   h_total_sys[1]->Sumw2();
-
+  std::vector<TH1F*> h_total_bin;
+  for( Int_t i = 0; i < energybins.size()-1; i++ ) {
+    TH1F* new_hist = new TH1F(Form("h_total_%d",i),
+			      Form("Energy bin: %g to %g MeV;Total light yield (pe / n MeV);Fr\
+ac. (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0]);
+    h_total_bin.push_back(new_hist);
+    h_total_bin[i]->Sumw2();
+  }
+  
   TH1F* h_ratio = new TH1F("h_ratio",";Neutron E_{kin} (MeV);Triplet/singlet (MeV^{-1})",
 			   energybins.size()-1,&energybins[0]);
   h_ratio->Sumw2();
@@ -149,14 +161,26 @@ void tof_to_spectrum() {
   TH1F* h_background = new TH1F("h_background",";Neutron E_{kin} (MeV);Frac. (MeV^{-1})",
 				energybins.size()-1,&energybins[0]);
   h_background->Sumw2();
+  TH1F* h_background_yield = new TH1F("h_background_yield",
+				      ";Neutron E_{kin} (MeV);Total light yield (pe / n MeV)",
+				      energybins.size()-1,&energybins[0]);
+  h_background_yield->Sumw2();
 
+  cout << "Looping over events..." << endl;
   // Loop over ev
   Int_t n = 0;
   for( Int_t ientry = 0; pdsEvTree -> GetEntry(ientry); ientry++ ) {
     if( ientry%(pdsEvTree->GetEntriesFast()/10) == 0 )
       std::cout << ientry << "/" << pdsEvTree->GetEntries() << std::endl;
     
-    if( pds_flag && inBeamWindow && !isBeamTrigger && pds_nevent==1 ) {
+    if( inBeamWindow ) {
+      // Fill background
+      n++;
+      Background(h_background,background_rate);
+      Background(h_background_yield,background_light);
+    }
+    
+    if( pds_flag && inBeamWindow && pds_nevent==1 ) {
       // Find n KE
       Double_t time = (pds_time[0] - rf_time) * 1e-9 - calib_time + tof_length/c;;
       Double_t E = time_to_E(time);
@@ -184,16 +208,14 @@ void tof_to_spectrum() {
       prompt_err = Sqrt(prompt_err);
 
       if( prompt_sum > 0 && sum-prompt_sum > 0 ) {
-	// Fill background
-	n++;
-	Background(h_background,background_rate);
-	
 	// Fill histograms
 	h_spectrum->Fill(E);
 	h_total->Fill(E,sum);
 	h_prompt->Fill(E,prompt_sum);
 	h_ratio->Fill(E,(sum-prompt_sum)/prompt_sum);
-	
+	if( h_total->FindBin(E) > 0 && h_total->FindBin(E) < h_total_bin.size() )
+	  h_total_bin[h_total->FindBin(E)-1]->Fill(sum);
+
 	// Fill shifted histograms
 	time -= gamma_width;
 	E = time_to_E(time);
@@ -211,10 +233,23 @@ void tof_to_spectrum() {
       }
     }
   }  
-  
-  TCanvas* c1 = new TCanvas();
-  gStyle->SetOptStat(0);
 
+  cout << "Drawing plots..." << endl;
+  TCanvas* c1 = new TCanvas();
+  vector<Int_t> ColorTable;
+  ColorTable.push_back(kBlue+2);
+  ColorTable.push_back(kRed+2);
+  ColorTable.push_back(kGreen+2);
+  ColorTable.push_back(kViolet+2);
+  ColorTable.push_back(kBlue);
+  ColorTable.push_back(kRed);
+  ColorTable.push_back(kGreen);
+  ColorTable.push_back(kViolet);
+  ColorTable.push_back(kBlue-2);
+  ColorTable.push_back(kRed-2);
+  ColorTable.push_back(kGreen-2);
+  ColorTable.push_back(kViolet-2);
+ 
   // Basic spectrum with systematic
   c1->cd()->SetLogy(1);
   c1->cd()->SetLogx(1);
@@ -255,9 +290,12 @@ void tof_to_spectrum() {
   h_prompt_sys[0]->Divide(h_spectrum);
   h_prompt_sys[1]->Scale(1./n);
   h_prompt_sys[1]->Divide(h_spectrum);
+  h_background_yield->Scale(1./n);
+  h_background_yield->Divide(h_spectrum);
   Normalize(h_prompt);
   Normalize(h_prompt_sys[0]);
   Normalize(h_prompt_sys[1]);
+  Normalize(h_background_yield);
   TGraphAsymmErrors* g_prompt_err = CalculateSystematicError(h_prompt,h_prompt_sys);
   h_prompt_sys[0]->SetLineColor(kGray);
   h_prompt_sys[1]->SetLineColor(kGray);
@@ -266,6 +304,10 @@ void tof_to_spectrum() {
   h_prompt->SetLineColor(kBlack);
   h_prompt->SetMarkerStyle(7);
   h_prompt->Draw("e1 same");
+  h_background_yield->SetLineColor(kRed+2);
+  h_background_yield->SetMarkerColor(kRed+2);
+  h_background_yield->SetMarkerStyle(7);
+  h_background_yield->Draw("e1 same");
   g_prompt_err->SetLineColor(kBlack);
   g_prompt_err->Draw("same PZ");
 
@@ -292,10 +334,27 @@ void tof_to_spectrum() {
   h_total->SetLineColor(kBlack);
   h_total->SetMarkerStyle(7);
   h_total->Draw("e1 same");
+  h_background_yield->Draw("e1 same");
   g_total_err->SetLineColor(kBlack);
   g_total_err->Draw("same PZ");
 
   c1->SaveAs("plots/spectrum-total.C");
+
+  c1->DrawClone();
+  c1->cd()->Clear();
+  
+  Int_t color = 0;
+  for( int i = 0; i < h_total_bin.size(); i++ ) {
+    h_total_bin[i]->Scale(1./n);
+    h_total_bin[i]->Scale(1./h_spectrum->GetBinContent(i+1));
+    h_total_bin[i]->Scale(1./h_spectrum->GetBinWidth(i+1));
+    h_total_bin[i]->SetMarkerStyle(7);
+    if( i%(h_total_bin.size()/5) == 0 ) {
+      h_total_bin[i]->SetLineColor(ColorTable[color]);
+      h_total_bin[i]->SetMarkerColor(ColorTable[color++]);
+      h_total_bin[i]->Draw("e1 same");
+    }
+  }
 
   // Ratio
   c1 -> DrawClone();
