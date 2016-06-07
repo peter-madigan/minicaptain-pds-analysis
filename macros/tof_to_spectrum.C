@@ -316,6 +316,8 @@ ac. (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0])
   // Total light
   c1 -> DrawClone();
   c1 -> cd();
+  c1->SetLogy(0);
+  c1->SetLogx(0);
 
   h_total->Scale(1./n);
   h_total->Divide(h_spectrum);
@@ -342,6 +344,8 @@ ac. (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0])
 
   c1->DrawClone();
   c1->cd()->Clear();
+  c1->SetLogy(1);
+  c1->SetLogx(0);
   
   Int_t color = 0;
   for( int i = 0; i < h_total_bin.size(); i++ ) {
@@ -349,16 +353,17 @@ ac. (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0])
     h_total_bin[i]->Scale(1./h_spectrum->GetBinContent(i+1));
     h_total_bin[i]->Scale(1./h_spectrum->GetBinWidth(i+1));
     h_total_bin[i]->SetMarkerStyle(7);
-    if( i%(h_total_bin.size()/5) == 0 ) {
+    if( i%(h_total_bin.size()/10) == 0 ) {
       h_total_bin[i]->SetLineColor(ColorTable[color]);
       h_total_bin[i]->SetMarkerColor(ColorTable[color++]);
-      h_total_bin[i]->Draw("e1 same");
+      h_total_bin[i]->Draw("hist same");
     }
   }
 
   // Ratio
-  c1 -> DrawClone();
-  c1 -> cd();
+  c1->DrawClone();
+  c1->cd()->SetLogx(0);
+  c1->SetLogy(0);
 
   h_ratio->Scale(1./n);
   h_ratio->Divide(h_spectrum);
