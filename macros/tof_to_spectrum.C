@@ -4,7 +4,7 @@
 Double_t calib_time = -671.8e-9; // sec 
 Double_t time_err  = 4.5e-9; // sec (width of gamma peak)
 Double_t peak_err  = 2.5/6.5; // average width (ADC) over average 1pe peak (ADC)
-Double_t tof_length = 23.2; // m -- 2016-3 pmadigan
+Double_t tof_length = 23.2; // m -- 2016-3
 Double_t length_err = 0.1; // m 
 
 Double_t c    = 3e8; // m/s
@@ -44,7 +44,7 @@ Double_t fr[2];
 Double_t sv[4], pllo[4], plhi[4], fp[4], fpe[4];
 Double_t chi2;
 Int_t    ndf;
-fr[0] = 10; fr[1] = 300;
+fr[0] = 7.5; fr[1] = 300;
 pllo[0]=0.01; pllo[1]=0.1; pllo[2]=0; pllo[3]=0.1;
 plhi[0]=100; plhi[1]=300; plhi[2]=1; plhi[3]=100;
 sv[0]=10; sv[1]=30; sv[2]=1e-5; sv[3]=20;
@@ -91,12 +91,11 @@ void tof_to_spectrum() {
 
   cout << "Creating bins..." << endl;
   vector<double> energybins;
-  double width = 2e-9;
+  double width = 4.5e-9;
   for( double t = 1000e-9; time_to_E(t) < 900; t-=width ) {
-    if( time_to_E(t) > 1200 ) continue; 
     energybins.push_back(time_to_E(t));
     if( time_to_E(t) < 10 )
-      t-=100*width-width;
+      t-=50*width-width;
     else if( time_to_E(t) < 100 )
       t-=10*width-width;
   }
@@ -151,7 +150,7 @@ void tof_to_spectrum() {
   std::vector< std::vector<TH1F*> > h_total_bin_sys(energybins.size()-1, std::vector<TH1F*>(2));
   for( Int_t i = 0; i < energybins.size()-1; i++ ) {
     TH1F* new_hist = new TH1F(Form("h_total_%d",i),
-			      Form("Energy bin: %g to %g MeV;Total light yield (pe / n MeV);Frac. of triggers (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0]);
+			      Form("Energy bin: %.3g to %.3g MeV;Total light yield (pe / n MeV);Frac. of triggers (MeV^{-1})",energybins[i],energybins[i+1]),lightbins.size()-1,&lightbins[0]);
     h_total_bin.push_back(new_hist);
     h_total_bin[i]->Sumw2();
     std::vector<TH1F*> h_sys(2);
@@ -234,7 +233,7 @@ void tof_to_spectrum() {
 	h_total->Fill(E,sum);
 	h_prompt->Fill(E,prompt_sum);
 	h_ratio->Fill(E,(sum-prompt_sum)/prompt_sum);
-	if( h_total->FindBin(E) > 0 && h_total->FindBin(E) < h_total_bin.size() )
+	if( h_total->FindBin(E) > 0 && h_total->FindBin(E)-1 < h_total_bin.size() )
 	  h_total_bin[h_total->FindBin(E)-1]->Fill(sum);
 
 	// Fill shifted histograms
@@ -244,7 +243,7 @@ void tof_to_spectrum() {
 	h_prompt_sys[0]->Fill(E,prompt_sum);
 	h_total_sys[0]->Fill(E,sum);
 	h_ratio_sys[0]->Fill(E,(sum-prompt_sum)/prompt_sum);
-	if( h_total->FindBin(E) > 0 && h_total->FindBin(E) < h_total_bin_sys.size() )
+	if( h_total->FindBin(E) > 0 && h_total->FindBin(E)-1 < h_total_bin_sys.size() )
           h_total_bin_sys[h_total->FindBin(E)-1][0]->Fill(sum);
 	
 	time += 2 * gamma_width;
@@ -253,7 +252,7 @@ void tof_to_spectrum() {
 	h_prompt_sys[1]->Fill(E,prompt_sum);
 	h_total_sys[1]->Fill(E,sum);
 	h_ratio_sys[1]->Fill(E,(sum-prompt_sum)/prompt_sum);
-	if( h_total->FindBin(E) > 0 && h_total->FindBin(E) < h_total_bin_sys.size() )
+	if( h_total->FindBin(E) > 0 && h_total->FindBin(E)-1 < h_total_bin_sys.size() )
           h_total_bin_sys[h_total->FindBin(E)-1][1]->Fill(sum);
       }
     }
@@ -437,6 +436,7 @@ void tof_to_spectrum() {
     if( h_spectrum->FindBin(10) == i+1 ||
 	h_spectrum->FindBin(50) == i+1 ||
 	h_spectrum->FindBin(100) == i+1 ||
+	h_spectrum->FindBin(350) == i+1 ||
 	h_spectrum->FindBin(500) == i+1 ||
 	h_spectrum->FindBin(750) == i+1 ) {
       h_total_bin[i]->GetYaxis()->SetRangeUser(1e-9,4e-7);
