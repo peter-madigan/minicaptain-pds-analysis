@@ -1,6 +1,6 @@
 static const Int_t kNPMTs = 15;
 static const Int_t kMaxNHits = 200;
-static const Double_t kDelay = -671.25 - 77.267;
+static const Double_t kDelay = 0;//-671.25 - 77.267;
 static const Double_t kIntToPE = 0.07084;
 
 Int_t    pds_nevent;
