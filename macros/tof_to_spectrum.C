@@ -91,7 +91,7 @@ void tof_to_spectrum() {
 
   cout << "Creating bins..." << endl;
   vector<double> energybins;
-  double width = 4.5e-9;
+  double width = 0.4e-9;
   for( double t = 1000e-9; time_to_E(t) < 900; t-=width ) {
     energybins.push_back(time_to_E(t));
     if( time_to_E(t) < 10 )
