@@ -44,7 +44,7 @@ Double_t fr[2];
 Double_t sv[4], pllo[4], plhi[4], fp[4], fpe[4];
 Double_t chi2;
 Int_t    ndf;
-fr[0] = 7.5; fr[1] = 300;
+fr[0] = 0; fr[1] = 300;
 pllo[0]=0.01; pllo[1]=0.1; pllo[2]=0; pllo[3]=0.1;
 plhi[0]=100; plhi[1]=300; plhi[2]=1; plhi[3]=100;
 sv[0]=10; sv[1]=30; sv[2]=1e-5; sv[3]=20;
@@ -91,7 +91,7 @@ void tof_to_spectrum() {
 
   cout << "Creating bins..." << endl;
   vector<double> energybins;
-  double width = 0.4e-9;
+  double width = 1e-9;
   for( double t = 1000e-9; time_to_E(t) < 900; t-=width ) {
     energybins.push_back(time_to_E(t));
     if( time_to_E(t) < 10 )
